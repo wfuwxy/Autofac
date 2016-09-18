@@ -25,7 +25,6 @@
 
 using System;
 using System.Collections.Generic;
-using Autofac.Util;
 
 namespace Autofac.Core
 {
@@ -35,39 +34,40 @@ namespace Autofac.Core
     /// </summary>
     public class ActivatingEventArgs<T> : EventArgs, IActivatingEventArgs<T>
     {
-        readonly IComponentContext _context;
-        readonly IComponentRegistration _component;
-        T _instance;
-        readonly IEnumerable<Parameter> _parameters;
+        private T _instance;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="ActivatedEventArgs{T}"/> class.
+        /// Initializes a new instance of the <see cref="ActivatingEventArgs{T}"/> class.
         /// </summary>
         /// <param name="context">The context.</param>
         /// <param name="component">The component.</param>
         /// <param name="parameters">The parameters.</param>
-        /// <param name="instance">The instance.</param>        
+        /// <param name="instance">The instance.</param>
         public ActivatingEventArgs(IComponentContext context, IComponentRegistration component, IEnumerable<Parameter> parameters, T instance)
         {
-            _context = Enforce.ArgumentNotNull(context, "context");
-            _component = Enforce.ArgumentNotNull(component, "component");
-            _parameters = Enforce.ArgumentNotNull(parameters, "parameters");
-            if ((object)instance == null) throw new ArgumentNullException("instance");
+            if (context == null) throw new ArgumentNullException(nameof(context));
+            if (component == null) throw new ArgumentNullException(nameof(component));
+            if (parameters == null) throw new ArgumentNullException(nameof(parameters));
+            if (instance == null) throw new ArgumentNullException(nameof(instance));
+
+            Context = context;
+            Component = component;
+            Parameters = parameters;
             _instance = instance;
         }
 
         /// <summary>
-        /// The context in which the activation occurred.
+        /// Gets the context in which the activation occurred.
         /// </summary>
-        public IComponentContext Context { get { return _context; } }
+        public IComponentContext Context { get; }
 
         /// <summary>
-        /// The component providing the instance.
+        /// Gets the component providing the instance.
         /// </summary>
-        public IComponentRegistration Component { get { return _component; } }
+        public IComponentRegistration Component { get; }
 
         /// <summary>
-        /// The instance that will be used to satisfy the request.
+        /// Gets or sets the instance that will be used to satisfy the request.
         /// </summary>
         /// <remarks>
         /// The instance can be replaced if needed, e.g. by an interface proxy.
@@ -78,9 +78,10 @@ namespace Autofac.Core
             {
                 return _instance;
             }
+
             set
             {
-                if ((object)value == null) throw new ArgumentNullException("value");
+                if (value == null) throw new ArgumentNullException(nameof(value));
                 _instance = value;
             }
         }
@@ -95,8 +96,8 @@ namespace Autofac.Core
         }
 
         /// <summary>
-        /// The parameters supplied to the activator.
+        /// Gets the parameters supplied to the activator.
         /// </summary>
-        public IEnumerable<Parameter> Parameters { get { return _parameters; } }
+        public IEnumerable<Parameter> Parameters { get; }
     }
 }

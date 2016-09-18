@@ -29,7 +29,7 @@ using System.Linq;
 
 namespace Autofac.Util
 {
-    static class SequenceExtensions
+    internal static class SequenceExtensions
     {
         /// <summary>
         /// Joins the strings into one single string interspersing the elements with the separator (a-la
@@ -40,8 +40,8 @@ namespace Autofac.Util
         /// <returns>The joined string.</returns>
         public static string JoinWith(this IEnumerable<string> elements, string separator)
         {
-            if (elements == null) throw new ArgumentNullException("elements");
-            if (separator == null) throw new ArgumentNullException("separator");
+            if (elements == null) throw new ArgumentNullException(nameof(elements));
+            if (separator == null) throw new ArgumentNullException(nameof(separator));
 
             return string.Join(separator, elements.ToArray());
         }
@@ -49,13 +49,13 @@ namespace Autofac.Util
         /// <summary>
         /// Appends the item to the specified sequence.
         /// </summary>
-        /// <typeparam name="T"></typeparam>
+        /// <typeparam name="T">The type of element in the sequence.</typeparam>
         /// <param name="sequence">The sequence.</param>
         /// <param name="trailingItem">The trailing item.</param>
-        /// <returns></returns>
+        /// <returns>The sequence with an item appended to the end.</returns>
         public static IEnumerable<T> Append<T>(this IEnumerable<T> sequence, T trailingItem)
         {
-            if (sequence == null) throw new ArgumentNullException("sequence");
+            if (sequence == null) throw new ArgumentNullException(nameof(sequence));
 
             foreach (var t in sequence)
                 yield return t;
@@ -66,13 +66,13 @@ namespace Autofac.Util
         /// <summary>
         /// Prepends the item to the specified sequence.
         /// </summary>
-        /// <typeparam name="T"></typeparam>
+        /// <typeparam name="T">The type of element in the sequence.</typeparam>
         /// <param name="sequence">The sequence.</param>
         /// <param name="leadingItem">The leading item.</param>
-        /// <returns></returns>
+        /// <returns>The sequence with an item prepended.</returns>
         public static IEnumerable<T> Prepend<T>(this IEnumerable<T> sequence, T leadingItem)
         {
-            if (sequence == null) throw new ArgumentNullException("sequence");
+            if (sequence == null) throw new ArgumentNullException(nameof(sequence));
 
             yield return leadingItem;
 

@@ -38,16 +38,14 @@ namespace Autofac.Features.Metadata
     /// types automatically whenever type T is registered with the container.
     /// Metadata values come from the component registration's metadata.
     /// </summary>
-    class MetaRegistrationSource : IRegistrationSource
+    internal class MetaRegistrationSource : IRegistrationSource
     {
-        static readonly MethodInfo CreateMetaRegistrationMethod = typeof(MetaRegistrationSource).GetTypeInfo().GetDeclaredMethod("CreateMetaRegistration");
+        private static readonly MethodInfo CreateMetaRegistrationMethod = typeof(MetaRegistrationSource).GetTypeInfo().GetDeclaredMethod(nameof(CreateMetaRegistration));
 
         public IEnumerable<IComponentRegistration> RegistrationsFor(Service service, Func<Service, IEnumerable<IComponentRegistration>> registrationAccessor)
         {
-            if (registrationAccessor == null)
-            {
-                throw new ArgumentNullException("registrationAccessor");
-            }
+            if (registrationAccessor == null) throw new ArgumentNullException(nameof(registrationAccessor));
+
             var swt = service as IServiceWithType;
             if (swt == null || !swt.ServiceType.IsGenericTypeDefinedBy(typeof(Meta<>)))
                 return Enumerable.Empty<IComponentRegistration>();
@@ -63,26 +61,22 @@ namespace Autofac.Features.Metadata
                 .Cast<IComponentRegistration>();
         }
 
-        public bool IsAdapterForIndividualComponents
-        {
-            get { return true; }
-        }
+        public bool IsAdapterForIndividualComponents => true;
 
         public override string ToString()
         {
             return MetaRegistrationSourceResources.MetaRegistrationSourceDescription;
         }
 
-        // ReSharper disable UnusedMember.Local
-        static IComponentRegistration CreateMetaRegistration<T>(Service providedService, IComponentRegistration valueRegistration)
-        // ReSharper restore UnusedMember.Local
+        private static IComponentRegistration CreateMetaRegistration<T>(Service providedService, IComponentRegistration valueRegistration)
         {
             var rb = RegistrationBuilder
                 .ForDelegate((c, p) => new Meta<T>(
                     (T)c.ResolveComponent(valueRegistration, p),
                     valueRegistration.Target.Metadata))
                 .As(providedService)
-                .Targeting(valueRegistration);
+                .Targeting(valueRegistration)
+                .InheritRegistrationOrderFrom(valueRegistration);
 
             return rb.CreateRegistration();
         }

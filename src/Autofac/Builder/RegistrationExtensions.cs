@@ -49,10 +49,11 @@ namespace Autofac.Builder
         /// <returns>Registration builder allowing the registration to be configured.</returns>
         /// <remarks>Factory delegates are provided automatically in Autofac 2,
         /// and this method is generally not required.</remarks>
-        public static IRegistrationBuilder<System.Delegate, GeneratedFactoryActivatorData, SingleRegistrationStyle>
+        public static IRegistrationBuilder<Delegate, GeneratedFactoryActivatorData, SingleRegistrationStyle>
             RegisterGeneratedFactory(this ContainerBuilder builder, Type delegateType)
         {
-            if (delegateType == null) throw new ArgumentNullException("delegateType");
+            if (delegateType == null) throw new ArgumentNullException(nameof(delegateType));
+
             Enforce.ArgumentTypeIsFunction(delegateType);
 
             var returnType = delegateType.FunctionReturnType();
@@ -68,10 +69,10 @@ namespace Autofac.Builder
         /// <returns>Registration builder allowing the registration to be configured.</returns>
         /// <remarks>Factory delegates are provided automatically in Autofac 2, and
         /// this method is generally not required.</remarks>
-        public static IRegistrationBuilder<System.Delegate, GeneratedFactoryActivatorData, SingleRegistrationStyle>
+        public static IRegistrationBuilder<Delegate, GeneratedFactoryActivatorData, SingleRegistrationStyle>
             RegisterGeneratedFactory(this ContainerBuilder builder, Type delegateType, Service service)
         {
-            return GeneratedFactoryRegistrationExtensions.RegisterGeneratedFactory<System.Delegate>(builder, delegateType, service);
+            return GeneratedFactoryRegistrationExtensions.RegisterGeneratedFactory<Delegate>(builder, delegateType, service);
         }
 
         /// <summary>
@@ -102,7 +103,8 @@ namespace Autofac.Builder
             RegisterGeneratedFactory<TDelegate>(this ContainerBuilder builder)
             where TDelegate : class
         {
-            if (builder == null) throw new ArgumentNullException("builder");
+            if (builder == null) throw new ArgumentNullException(nameof(builder));
+
             Enforce.ArgumentTypeIsFunction(typeof(TDelegate));
 
             var returnType = typeof(TDelegate).FunctionReturnType();
@@ -127,10 +129,8 @@ namespace Autofac.Builder
             where TGeneratedFactoryActivatorData : GeneratedFactoryActivatorData
             where TSingleRegistrationStyle : SingleRegistrationStyle
         {
-            if (registration == null)
-            {
-                throw new ArgumentNullException("registration");
-            }
+            if (registration == null) throw new ArgumentNullException(nameof(registration));
+
             registration.ActivatorData.ParameterMapping = ParameterMapping.ByName;
             return registration;
         }
@@ -153,10 +153,8 @@ namespace Autofac.Builder
             where TGeneratedFactoryActivatorData : GeneratedFactoryActivatorData
             where TSingleRegistrationStyle : SingleRegistrationStyle
         {
-            if (registration == null)
-            {
-                throw new ArgumentNullException("registration");
-            }
+            if (registration == null) throw new ArgumentNullException(nameof(registration));
+
             registration.ActivatorData.ParameterMapping = ParameterMapping.ByPosition;
             return registration;
         }
@@ -179,62 +177,10 @@ namespace Autofac.Builder
             where TGeneratedFactoryActivatorData : GeneratedFactoryActivatorData
             where TSingleRegistrationStyle : SingleRegistrationStyle
         {
-            if (registration == null)
-            {
-                throw new ArgumentNullException("registration");
-            }
+            if (registration == null) throw new ArgumentNullException(nameof(registration));
+
             registration.ActivatorData.ParameterMapping = ParameterMapping.ByType;
             return registration;
-        }
-
-        /// <summary>
-        /// Registers the type as a collection. If no services or names are specified, the
-        /// default services will be IList&lt;T&gt;, ICollection&lt;T&gt;, and IEnumerable&lt;T&gt;        
-        /// </summary>
-        /// <param name="elementType">The type of the collection elements.</param>
-        /// <param name="builder">Container builder.</param>
-        /// <param name="collectionName">A unique name for the collection that can be passed to MemberOf().</param>
-        /// <returns>Registration builder allowing the registration to be configured.</returns>
-        /// <remarks>Collections are provided automatically in Autofac 2,
-        /// and this method is generally not required.</remarks>
-        public static IRegistrationBuilder<object[], SimpleActivatorData, SingleRegistrationStyle>
-            RegisterCollection(this ContainerBuilder builder, string collectionName, Type elementType)
-        {
-            return CollectionRegistrationExtensions.RegisterCollection<object>(builder, collectionName, elementType);
-        }
-
-        /// <summary>
-        /// Registers the type as a collection. If no services or names are specified, the
-        /// default services will be IList&lt;T&gt;, ICollection&lt;T&gt;, and IEnumerable&lt;T&gt;        
-        /// </summary>
-        /// <typeparam name="T">The type of the collection elements.</typeparam>
-        /// <param name="builder">Container builder.</param>
-        /// <param name="collectionName">A unique name for the collection that can be passed to MemberOf().</param>
-        /// <returns>Registration builder allowing the registration to be configured.</returns>
-        /// <remarks>Collections are provided automatically in Autofac 2,
-        /// and this method is generally not required.</remarks>
-        public static IRegistrationBuilder<T[], SimpleActivatorData, SingleRegistrationStyle>
-            RegisterCollection<T>(this ContainerBuilder builder, string collectionName)
-        {
-            return CollectionRegistrationExtensions.RegisterCollection<T>(builder, collectionName, typeof(T));
-        }
-
-        /// <summary>
-        /// Include the element explicitly in a collection configured using RegisterCollection.
-        /// </summary>
-        /// <typeparam name="TLimit">Registration limit type.</typeparam>
-        /// <typeparam name="TSingleRegistrationStyle">Registration style.</typeparam>
-        /// <typeparam name="TActivatorData">Activator data type.</typeparam>
-        /// <param name="registration">Registration to export.</param>
-        /// <param name="collectionName">The collection name, as passed to RegisterCollection.</param>
-        /// <returns>A registration builder allowing further configuration of the component.</returns>
-        public static IRegistrationBuilder<TLimit, TActivatorData, TSingleRegistrationStyle>
-            MemberOf<TLimit, TActivatorData, TSingleRegistrationStyle>(
-                this IRegistrationBuilder<TLimit, TActivatorData, TSingleRegistrationStyle> registration,
-                string collectionName)
-            where TSingleRegistrationStyle : SingleRegistrationStyle
-        {
-            return CollectionRegistrationExtensions.MemberOf(registration, collectionName);
         }
     }
 }

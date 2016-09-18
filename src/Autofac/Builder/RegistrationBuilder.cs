@@ -1,4 +1,29 @@
-﻿using System;
+﻿// This software is part of the Autofac IoC container
+// Copyright © 2011 Autofac Contributors
+// http://autofac.org
+//
+// Permission is hereby granted, free of charge, to any person
+// obtaining a copy of this software and associated documentation
+// files (the "Software"), to deal in the Software without
+// restriction, including without limitation the rights to use,
+// copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the
+// Software is furnished to do so, subject to the following
+// conditions:
+//
+// The above copyright notice and this permission notice shall be
+// included in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+// OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+// HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+// WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+// OTHER DEALINGS IN THE SOFTWARE.
+
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -93,9 +118,6 @@ namespace Autofac.Builder
         /// var registration = RegistrationBuilder.ForType&lt;Foo&gt;().CreateRegistration();
         /// </code>
         /// </example>
-        /// <typeparam name="TLimit"></typeparam>
-        /// <typeparam name="TActivatorData"></typeparam>
-        /// <typeparam name="TSingleRegistrationStyle"></typeparam>
         /// <param name="builder">The registration builder.</param>
         /// <returns>An IComponentRegistration.</returns>
         /// <exception cref="System.ArgumentNullException">
@@ -106,10 +128,8 @@ namespace Autofac.Builder
             where TSingleRegistrationStyle : SingleRegistrationStyle
             where TActivatorData : IConcreteActivatorData
         {
-            if (builder == null)
-            {
-                throw new ArgumentNullException("builder");
-            }
+            if (builder == null) throw new ArgumentNullException(nameof(builder));
+
             return CreateRegistration(
                 builder.RegistrationStyle.Id,
                 builder.RegistrationData,
@@ -154,23 +174,24 @@ namespace Autofac.Builder
             IEnumerable<Service> services,
             IComponentRegistration target)
         {
-            if (activator == null)
-            {
-                throw new ArgumentNullException("activator");
-            }
-            if (data == null)
-            {
-                throw new ArgumentNullException("data");
-            }
+            if (activator == null) throw new ArgumentNullException(nameof(activator));
+            if (data == null) throw new ArgumentNullException(nameof(data));
+
             var limitType = activator.LimitType;
             if (limitType != typeof(object))
+            {
                 foreach (var ts in services.OfType<IServiceWithType>())
+                {
                     if (!ts.ServiceType.GetTypeInfo().IsAssignableFrom(limitType.GetTypeInfo()))
-                        throw new ArgumentException(string.Format(CultureInfo.CurrentCulture,
-                            RegistrationBuilderResources.ComponentDoesNotSupportService, limitType, ts));
+                    {
+                        throw new ArgumentException(string.Format(CultureInfo.CurrentCulture, RegistrationBuilderResources.ComponentDoesNotSupportService, limitType, ts));
+                    }
+                }
+            }
 
             IComponentRegistration registration;
             if (target == null)
+            {
                 registration = new ComponentRegistration(
                     id,
                     activator,
@@ -179,7 +200,9 @@ namespace Autofac.Builder
                     data.Ownership,
                     services,
                     data.Metadata);
+            }
             else
+            {
                 registration = new ComponentRegistration(
                     id,
                     activator,
@@ -189,6 +212,7 @@ namespace Autofac.Builder
                     services,
                     data.Metadata,
                     target);
+            }
 
             foreach (var p in data.PreparingHandlers)
                 registration.Preparing += p;
@@ -204,12 +228,9 @@ namespace Autofac.Builder
 
         /// <summary>
         /// Register a component in the component registry. This helper method is necessary
-        /// in order to execute OnRegistered hooks and respect PreserveDefaults. 
+        /// in order to execute OnRegistered hooks and respect PreserveDefaults.
         /// </summary>
         /// <remarks>Hoping to refactor this out.</remarks>
-        /// <typeparam name="TLimit"></typeparam>
-        /// <typeparam name="TActivatorData"></typeparam>
-        /// <typeparam name="TSingleRegistrationStyle"></typeparam>
         /// <param name="cr">Component registry to make registration in.</param>
         /// <param name="builder">Registration builder with data for new registration.</param>
         public static void RegisterSingleComponent<TLimit, TActivatorData, TSingleRegistrationStyle>(
@@ -218,10 +239,8 @@ namespace Autofac.Builder
             where TSingleRegistrationStyle : SingleRegistrationStyle
             where TActivatorData : IConcreteActivatorData
         {
-            if (cr == null)
-            {
-                throw new ArgumentNullException("cr");
-            }
+            if (cr == null) throw new ArgumentNullException(nameof(cr));
+
             var registration = CreateRegistration(builder);
 
             cr.Register(registration, builder.RegistrationStyle.PreserveDefaults);

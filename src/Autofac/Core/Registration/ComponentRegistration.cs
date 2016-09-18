@@ -25,6 +25,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using Autofac.Util;
@@ -34,12 +35,13 @@ namespace Autofac.Core.Registration
     /// <summary>
     /// Describes a logical component within the container.
     /// </summary>
+    [SuppressMessage("Microsoft.ApiDesignGuidelines", "CA2213", Justification = "The target registration, if provided, is disposed elsewhere.")]
     public class ComponentRegistration : Disposable, IComponentRegistration
     {
-        readonly IComponentRegistration _target;
+        private readonly IComponentRegistration _target;
 
         /// <summary>
-        /// Create a new component registration.
+        /// Initializes a new instance of the <see cref="ComponentRegistration"/> class.
         /// </summary>
         /// <param name="id">Unique identifier for the component.</param>
         /// <param name="activator">Activator used to activate instances.</param>
@@ -57,19 +59,22 @@ namespace Autofac.Core.Registration
             IEnumerable<Service> services,
             IDictionary<string, object> metadata)
         {
+            if (activator == null) throw new ArgumentNullException(nameof(activator));
+            if (lifetime == null) throw new ArgumentNullException(nameof(lifetime));
+            if (services == null) throw new ArgumentNullException(nameof(services));
+            if (metadata == null) throw new ArgumentNullException(nameof(metadata));
+
             Id = id;
-            Activator = Enforce.ArgumentNotNull(activator, "activator");
-            Lifetime = Enforce.ArgumentNotNull(lifetime, "lifetime");
+            Activator = activator;
+            Lifetime = lifetime;
             Sharing = sharing;
             Ownership = ownership;
-            Services = Enforce.ArgumentElementNotNull(
-                Enforce.ArgumentNotNull(services, "services"), "services").ToList();
-            Metadata = new Dictionary<string, object>(
-                Enforce.ArgumentNotNull(metadata, "metadata"));
+            Services = Enforce.ArgumentElementNotNull(services, nameof(services));
+            Metadata = metadata;
         }
 
         /// <summary>
-        /// Create a new component registration.
+        /// Initializes a new instance of the <see cref="ComponentRegistration"/> class.
         /// </summary>
         /// <param name="id">Unique identifier for the component.</param>
         /// <param name="activator">Activator used to activate instances.</param>
@@ -90,53 +95,52 @@ namespace Autofac.Core.Registration
             IComponentRegistration target)
             : this(id, activator, lifetime, sharing, ownership, services, metadata)
         {
-            _target = Enforce.ArgumentNotNull(target, "target");
+            if (target == null) throw new ArgumentNullException(nameof(target));
+
+            _target = target;
         }
 
         /// <summary>
-        /// The component registration upon which this registration is based.
+        /// Gets the component registration upon which this registration is based.
         /// If this registration was created directly by the user, returns this.
         /// </summary>
-        public IComponentRegistration Target
-        {
-            get { return _target ?? this; }
-        }
+        public IComponentRegistration Target => _target ?? this;
 
         /// <summary>
-        /// A unique identifier for this component (shared in all sub-contexts.)
+        /// Gets a unique identifier for this component (shared in all sub-contexts.)
         /// This value also appears in Services.
         /// </summary>
-        public Guid Id { get; private set; }
+        public Guid Id { get; }
 
         /// <summary>
-        /// The activator used to create instances.
+        /// Gets or sets the activator used to create instances.
         /// </summary>
         public IInstanceActivator Activator { get; set; }
 
         /// <summary>
-        /// The lifetime associated with the component.
+        /// Gets the lifetime associated with the component.
         /// </summary>
-        public IComponentLifetime Lifetime { get; private set; }
+        public IComponentLifetime Lifetime { get; }
 
         /// <summary>
-        /// Whether the component instances are shared or not.
+        /// Gets information about whether the component instances are shared or not.
         /// </summary>
-        public InstanceSharing Sharing { get; private set; }
+        public InstanceSharing Sharing { get; }
 
         /// <summary>
-        /// Whether the instances of the component should be disposed by the container.
+        /// Gets information about whether the instances of the component should be disposed by the container.
         /// </summary>
-        public InstanceOwnership Ownership { get; private set; }
+        public InstanceOwnership Ownership { get; }
 
         /// <summary>
-        /// The services provided by the component.
+        /// Gets the services provided by the component.
         /// </summary>
-        public IEnumerable<Service> Services { get; private set; }
+        public IEnumerable<Service> Services { get; }
 
         /// <summary>
-        /// Additional data associated with the component.
+        /// Gets additional data associated with the component.
         /// </summary>
-        public IDictionary<string, object> Metadata { get; private set; }
+        public IDictionary<string, object> Metadata { get; }
 
         /// <summary>
         /// Fired when a new instance is required. The instance can be
@@ -198,10 +202,7 @@ namespace Autofac.Core.Registration
         public void RaiseActivated(IComponentContext context, IEnumerable<Parameter> parameters, object instance)
         {
             var handler = Activated;
-            if (handler == null) return;
-
-            var args = new ActivatedEventArgs<object>(context, this, parameters, instance);
-            handler(this, args);
+            handler?.Invoke(this, new ActivatedEventArgs<object>(context, this, parameters, instance));
         }
 
         /// <summary>
@@ -211,7 +212,8 @@ namespace Autofac.Core.Registration
         public override string ToString()
         {
             // Activator = {0}, Services = [{1}], Lifetime = {2}, Sharing = {3}, Ownership = {4}
-            return string.Format(CultureInfo.CurrentCulture,
+            return string.Format(
+                CultureInfo.CurrentCulture,
                 ComponentRegistrationResources.ToStringFormat,
                 Activator,
                 Services.Select(s => s.Description).JoinWith(", "),

@@ -40,30 +40,25 @@ namespace Autofac.Core
     [DebuggerDisplay("Tag = {Tag}, IsDisposed = {IsDisposed}")]
     public class Container : Disposable, IContainer, IServiceProvider
     {
-        readonly IComponentRegistry _componentRegistry;
-
-        readonly ILifetimeScope _rootLifetimeScope;
+        private readonly ILifetimeScope _rootLifetimeScope;
 
         /// <summary>
-        /// Create a new container.
+        /// Initializes a new instance of the <see cref="Container"/> class.
         /// </summary>
         internal Container()
         {
-            _componentRegistry = new ComponentRegistry();
+            ComponentRegistry = new ComponentRegistry();
 
-            _componentRegistry.Register(new ComponentRegistration(
+            ComponentRegistry.Register(new ComponentRegistration(
                 LifetimeScope.SelfRegistrationId,
-                new DelegateActivator(typeof(LifetimeScope), (c, p) =>
-                {
-                    throw new InvalidOperationException(ContainerResources.SelfRegistrationCannotBeActivated);
-                }),
+                new DelegateActivator(typeof(LifetimeScope), (c, p) => { throw new InvalidOperationException(ContainerResources.SelfRegistrationCannotBeActivated); }),
                 new CurrentScopeLifetime(),
                 InstanceSharing.Shared,
                 InstanceOwnership.ExternallyOwned,
                 new Service[] { new TypedService(typeof(ILifetimeScope)), new TypedService(typeof(IComponentContext)) },
                 new Dictionary<string, object>()));
 
-            _rootLifetimeScope = new LifetimeScope(_componentRegistry);
+            _rootLifetimeScope = new LifetimeScope(ComponentRegistry);
         }
 
         /// <summary>
@@ -115,23 +110,17 @@ namespace Autofac.Core
         }
 
         /// <summary>
-        /// The disposer associated with this container. Instances can be associated
+        /// Gets the disposer associated with this container. Instances can be associated
         /// with it manually if required.
         /// </summary>
-        public IDisposer Disposer
-        {
-            get { return _rootLifetimeScope.Disposer; }
-        }
+        public IDisposer Disposer => _rootLifetimeScope.Disposer;
 
         /// <summary>
-        /// Tag applied to the lifetime scope.
+        /// Gets the tag applied to the lifetime scope.
         /// </summary>
         /// <remarks>The tag applied to this scope and the contexts generated when
         /// it resolves component dependencies.</remarks>
-        public object Tag
-        {
-            get { return _rootLifetimeScope.Tag; }
-        }
+        public object Tag => _rootLifetimeScope.Tag;
 
         /// <summary>
         /// Fired when a new scope based on the current scope is beginning.
@@ -161,12 +150,9 @@ namespace Autofac.Core
         }
 
         /// <summary>
-        /// Associates services with the components that provide them.
+        /// Gets associated services with the components that provide them.
         /// </summary>
-        public IComponentRegistry ComponentRegistry
-        {
-            get { return _componentRegistry; }
-        }
+        public IComponentRegistry ComponentRegistry { get; }
 
         /// <summary>
         /// Resolve an instance of the provided registration within the context.
@@ -192,7 +178,7 @@ namespace Autofac.Core
             if (disposing)
             {
                 _rootLifetimeScope.Dispose();
-                _componentRegistry.Dispose();
+                ComponentRegistry.Dispose();
             }
 
             base.Dispose(disposing);
@@ -201,10 +187,10 @@ namespace Autofac.Core
         /// <summary>
         /// Gets the service object of the specified type.
         /// </summary>
-        /// <param name="serviceType">An object that specifies the type of service object 
+        /// <param name="serviceType">An object that specifies the type of service object
         /// to get.</param>
         /// <returns>
-        /// A service object of type <paramref name="serviceType"/>.-or- null if there is 
+        /// A service object of type <paramref name="serviceType"/>.-or- null if there is
         /// no service object of type <paramref name="serviceType"/>.
         /// </returns>
         public object GetService(Type serviceType)

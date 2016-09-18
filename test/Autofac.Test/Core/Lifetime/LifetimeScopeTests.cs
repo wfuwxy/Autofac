@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using Autofac.Core;
+using Autofac.Core.Lifetime;
 using Autofac.Test.Scenarios.RegistrationSources;
 using Xunit;
 
@@ -103,7 +105,7 @@ namespace Autofac.Test.Core.Lifetime
             Assert.Same(o2, scope3.Resolve<object>());
         }
 
-        [Fact(Skip = "Issue #272")]
+        [Fact]
         public void LocalRegistrationCanPreserveParentAsDefault()
         {
             var o = new object();
@@ -139,6 +141,7 @@ namespace Autofac.Test.Core.Lifetime
                 Assert.True(unconfigured.ComponentRegistry.TryGetRegistration(service, out reg), "The registration should have been found in the unconfigured scope.");
                 Assert.Equal(typeof(Person), reg.Activator.LimitType);
             }
+
             using (var configured = container.BeginLifetimeScope(b => { }))
             {
                 IComponentRegistration reg = null;
@@ -154,8 +157,8 @@ namespace Autofac.Test.Core.Lifetime
             var container = builder.Build();
             var l1 = container.BeginLifetimeScope();
             var l2 = l1.BeginLifetimeScope();
-            var L3 = l2.BeginLifetimeScope(b => b.RegisterType<DisposeTracker>());
-            var tracker = L3.Resolve<DisposeTracker>();
+            var l3 = l2.BeginLifetimeScope(b => b.RegisterType<DisposeTracker>());
+            var tracker = l3.Resolve<DisposeTracker>();
             Assert.False(tracker.IsDisposed, "The tracker should not yet be disposed.");
             container.Dispose();
             Assert.True(tracker.IsDisposed, "The tracker should have been disposed along with the lifetime scope chain.");
@@ -272,13 +275,29 @@ namespace Autofac.Test.Core.Lifetime
             Assert.Equal(1, child2.Resolve<IEnumerable<string>>().Count());
         }
 
-        public interface IServiceA { }
-        public interface IServiceB { }
-        public interface IServiceCommon { }
+        public interface IServiceA
+        {
+        }
 
-        public class ServiceA : IServiceA, IServiceCommon { }
-        public class ServiceB1 : IServiceB, IServiceCommon { }
-        public class ServiceB2 : IServiceB { }
+        public interface IServiceB
+        {
+        }
+
+        public interface IServiceCommon
+        {
+        }
+
+        public class ServiceA : IServiceA, IServiceCommon
+        {
+        }
+
+        public class ServiceB1 : IServiceB, IServiceCommon
+        {
+        }
+
+        public class ServiceB2 : IServiceB
+        {
+        }
 
         [Fact]
         public void ServiceOverrideThroughIntermediateScopeIsCorrect()
@@ -319,6 +338,82 @@ namespace Autofac.Test.Core.Lifetime
                     }
                 }
             }
+        }
+
+        private class AThatDependsOnB
+        {
+            public AThatDependsOnB(BThatCreatesA bThatCreatesA)
+            {
+            }
+        }
+
+        private class BThatCreatesA
+        {
+            public BThatCreatesA(Func<BThatCreatesA, AThatDependsOnB> factory)
+            {
+                factory(this);
+            }
+        }
+
+        [Fact]
+        public void InstancePerLifetimeScopeServiceCannotCreateSecondInstanceOfSelfDuringConstruction()
+        {
+            var builder = new ContainerBuilder();
+            builder.RegisterType<AThatDependsOnB>().InstancePerLifetimeScope();
+            builder.RegisterType<BThatCreatesA>().InstancePerLifetimeScope();
+            var container = builder.Build();
+
+            var exception = Assert.Throws<DependencyResolutionException>(() => container.Resolve<AThatDependsOnB>());
+
+            Assert.Equal(exception.Message, string.Format(CultureInfo.CurrentCulture, LifetimeScopeResources.SelfConstructingDependencyDetected, typeof(AThatDependsOnB).FullName));
+        }
+
+        internal class DependsOnRegisteredInstance
+        {
+            internal object Instance { get; set; }
+
+            public DependsOnRegisteredInstance(object instance)
+            {
+                Instance = instance;
+            }
+        }
+
+        internal class UpdatesRegistryWithInstance
+        {
+            private readonly IComponentContext _registerContext;
+
+            public UpdatesRegistryWithInstance(IComponentContext registerContext)
+            {
+                _registerContext = registerContext;
+            }
+
+            internal void UpdateRegistry(object instance)
+            {
+                var builder = new ContainerBuilder();
+                builder.RegisterInstance(instance);
+                builder.Update(_registerContext.ComponentRegistry);
+            }
+        }
+
+        [Fact]
+        public void CanRegisterInstanceUsingUpdateInsideChildLifetimeScope()
+        {
+            var builder = new ContainerBuilder();
+            builder.RegisterType<UpdatesRegistryWithInstance>();
+            builder.RegisterType<DependsOnRegisteredInstance>();
+            var container = builder.Build();
+
+            var scope = container.BeginLifetimeScope();
+            var updatesRegistry = scope.Resolve<UpdatesRegistryWithInstance>();
+            updatesRegistry.UpdateRegistry(new object());
+            var instance1 = scope.Resolve<DependsOnRegisteredInstance>();
+
+            scope = container.BeginLifetimeScope();
+            updatesRegistry = scope.Resolve<UpdatesRegistryWithInstance>();
+            updatesRegistry.UpdateRegistry(new object());
+            var instance2 = scope.Resolve<DependsOnRegisteredInstance>();
+
+            Assert.NotSame(instance1, instance2);
         }
     }
 }

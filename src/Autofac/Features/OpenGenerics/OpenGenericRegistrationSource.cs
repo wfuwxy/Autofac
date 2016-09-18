@@ -36,17 +36,17 @@ namespace Autofac.Features.OpenGenerics
     /// <summary>
     /// Generates activators for open generic types.
     /// </summary>
-    class OpenGenericRegistrationSource : IRegistrationSource
+    internal class OpenGenericRegistrationSource : IRegistrationSource
     {
-        readonly RegistrationData _registrationData;
-        readonly ReflectionActivatorData _activatorData;
+        private readonly RegistrationData _registrationData;
+        private readonly ReflectionActivatorData _activatorData;
 
         public OpenGenericRegistrationSource(
             RegistrationData registrationData,
             ReflectionActivatorData activatorData)
         {
-            if (registrationData == null) throw new ArgumentNullException("registrationData");
-            if (activatorData == null) throw new ArgumentNullException("activatorData");
+            if (registrationData == null) throw new ArgumentNullException(nameof(registrationData));
+            if (activatorData == null) throw new ArgumentNullException(nameof(activatorData));
 
             OpenGenericServiceBinder.EnforceBindable(activatorData.ImplementationType, registrationData.Services);
 
@@ -56,8 +56,8 @@ namespace Autofac.Features.OpenGenerics
 
         public IEnumerable<IComponentRegistration> RegistrationsFor(Service service, Func<Service, IEnumerable<IComponentRegistration>> registrationAccessor)
         {
-            if (service == null) throw new ArgumentNullException("service");
-            if (registrationAccessor == null) throw new ArgumentNullException("registrationAccessor");
+            if (service == null) throw new ArgumentNullException(nameof(service));
+            if (registrationAccessor == null) throw new ArgumentNullException(nameof(registrationAccessor));
 
             Type constructedImplementationType;
             IEnumerable<Service> services;
@@ -66,24 +66,17 @@ namespace Autofac.Features.OpenGenerics
                 yield return RegistrationBuilder.CreateRegistration(
                     Guid.NewGuid(),
                     _registrationData,
-                    new ReflectionActivator(
-                        constructedImplementationType,
-                        _activatorData.ConstructorFinder,
-                        _activatorData.ConstructorSelector,
-                        _activatorData.ConfiguredParameters,
-                        _activatorData.ConfiguredProperties),
+                    new ReflectionActivator(constructedImplementationType, _activatorData.ConstructorFinder, _activatorData.ConstructorSelector, _activatorData.ConfiguredParameters, _activatorData.ConfiguredProperties),
                     services);
             }
         }
 
-        public bool IsAdapterForIndividualComponents
-        {
-            get { return false; }
-        }
+        public bool IsAdapterForIndividualComponents => false;
 
         public override string ToString()
         {
-            return string.Format(CultureInfo.CurrentCulture,
+            return string.Format(
+                CultureInfo.CurrentCulture,
                 OpenGenericRegistrationSourceResources.OpenGenericRegistrationSourceDescription,
                 _activatorData.ImplementationType.FullName,
                 string.Join(", ", _registrationData.Services.Select(s => s.Description).ToArray()));

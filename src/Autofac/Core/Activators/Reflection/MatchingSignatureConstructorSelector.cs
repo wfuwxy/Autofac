@@ -34,15 +34,16 @@ namespace Autofac.Core.Activators.Reflection
     /// </summary>
     public class MatchingSignatureConstructorSelector : IConstructorSelector
     {
-        readonly Type[] _signature;
+        private readonly Type[] _signature;
 
         /// <summary>
-        /// Match constructors with the provided signature.
+        /// Initializes a new instance of the <see cref="MatchingSignatureConstructorSelector"/> class.
         /// </summary>
         /// <param name="signature">Signature to match.</param>
         public MatchingSignatureConstructorSelector(params Type[] signature)
         {
-            if (signature == null) throw new ArgumentNullException("signature");
+            if (signature == null) throw new ArgumentNullException(nameof(signature));
+
             _signature = signature;
         }
 
@@ -53,7 +54,7 @@ namespace Autofac.Core.Activators.Reflection
         /// <returns>The best constructor.</returns>
         public ConstructorParameterBinding SelectConstructorBinding(ConstructorParameterBinding[] constructorBindings)
         {
-            if (constructorBindings == null) throw new ArgumentNullException("constructorBindings");
+            if (constructorBindings == null) throw new ArgumentNullException(nameof(constructorBindings));
 
             var result = constructorBindings
                 .Where(b => b.TargetConstructor.GetParameters().Select(p => p.ParameterType).SequenceEqual(_signature))

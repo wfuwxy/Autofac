@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using Xunit;
-using Autofac.Core.Resolving;
 using Autofac.Core;
+using Autofac.Core.Resolving;
+using Xunit;
 
 namespace Autofac.Test.Core.Resolving
 {
@@ -18,7 +18,6 @@ namespace Autofac.Test.Core.Resolving
 
             var target = builder.Build();
             var de = Assert.Throws<DependencyResolutionException>(() => target.Resolve<object>());
-            Assert.Null(de.InnerException);
             Assert.True(de.Message.Contains("System.Object -> System.Object"));
             Assert.False(de.Message.Contains("System.Object -> System.Object -> System.Object"));
         }

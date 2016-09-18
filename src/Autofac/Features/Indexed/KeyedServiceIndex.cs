@@ -28,27 +28,19 @@ using Autofac.Core;
 
 namespace Autofac.Features.Indexed
 {
-    class KeyedServiceIndex<TKey, TValue> : IIndex<TKey, TValue>
+    internal class KeyedServiceIndex<TKey, TValue> : IIndex<TKey, TValue>
     {
-        readonly IComponentContext _context;
+        private readonly IComponentContext _context;
 
-        ///<summary></summary>
         public KeyedServiceIndex(IComponentContext context)
         {
-            if (context == null) throw new ArgumentNullException("context");
+            if (context == null) throw new ArgumentNullException(nameof(context));
+
             _context = context;
         }
 
-        ///<summary></summary>
-        public TValue this[TKey key]
-        {
-            get
-            {
-                return (TValue)_context.ResolveService(GetService(key));
-            }
-        }
+        public TValue this[TKey key] => (TValue)_context.ResolveService(GetService(key));
 
-        ///<summary></summary>
         public bool TryGetValue(TKey key, out TValue value)
         {
             object result;
@@ -62,7 +54,7 @@ namespace Autofac.Features.Indexed
             return false;
         }
 
-        static KeyedService GetService(TKey key)
+        private static KeyedService GetService(TKey key)
         {
             return new KeyedService(key, typeof(TValue));
         }

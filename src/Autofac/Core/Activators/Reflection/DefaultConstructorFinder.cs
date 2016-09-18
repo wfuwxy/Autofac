@@ -24,6 +24,7 @@
 // OTHER DEALINGS IN THE SOFTWARE.
 
 using System;
+using System.Collections.Concurrent;
 using System.Linq;
 using System.Reflection;
 
@@ -34,7 +35,9 @@ namespace Autofac.Core.Activators.Reflection
     /// </summary>
     public class DefaultConstructorFinder : IConstructorFinder
     {
-        readonly Func<Type, ConstructorInfo[]> _finder;
+        private readonly Func<Type, ConstructorInfo[]> _finder;
+
+        private static readonly ConcurrentDictionary<Type, ConstructorInfo[]> DefaultPublicConstructorsCache = new ConcurrentDictionary<Type, ConstructorInfo[]>();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DefaultConstructorFinder" /> class.
@@ -42,8 +45,8 @@ namespace Autofac.Core.Activators.Reflection
         /// <remarks>
         /// Default to selecting all public constructors.
         /// </remarks>
-        public DefaultConstructorFinder() : this(type => 
-            type.GetTypeInfo().DeclaredConstructors.Where(c => c.IsPublic).ToArray())
+        public DefaultConstructorFinder()
+          : this(GetDefaultPublicConstructors)
         {
         }
 
@@ -53,7 +56,7 @@ namespace Autofac.Core.Activators.Reflection
         /// <param name="finder">The finder function.</param>
         public DefaultConstructorFinder(Func<Type, ConstructorInfo[]> finder)
         {
-            if (finder == null) throw new ArgumentNullException("finder");
+            if (finder == null) throw new ArgumentNullException(nameof(finder));
 
             _finder = finder;
         }
@@ -66,6 +69,12 @@ namespace Autofac.Core.Activators.Reflection
         public ConstructorInfo[] FindConstructors(Type targetType)
         {
             return _finder(targetType);
+        }
+
+        private static ConstructorInfo[] GetDefaultPublicConstructors(Type type)
+        {
+            return DefaultPublicConstructorsCache.GetOrAdd(
+                type, t => t.GetTypeInfo().DeclaredConstructors.Where(c => c.IsPublic).ToArray());
         }
     }
 }

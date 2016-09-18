@@ -25,18 +25,20 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
+using System.Text;
 
 namespace Autofac.Core.Resolving
 {
     // Is a component context that pins resolution to a point in the context hierarchy
-    class InstanceLookup : IComponentContext, IInstanceLookup
+    [SuppressMessage("Microsoft.ApiDesignGuidelines", "CA2213", Justification = "The instance lookup activation scope gets disposed of by the creator of the scope.")]
+    internal class InstanceLookup : IComponentContext, IInstanceLookup
     {
-        readonly IEnumerable<Parameter> _parameters;
-        readonly IComponentRegistration _componentRegistration;
-        readonly IResolveOperation _context;
-        readonly ISharingLifetimeScope _activationScope;
-        object _newInstance;
-        bool _executed;
+        private readonly IResolveOperation _context;
+        private readonly ISharingLifetimeScope _activationScope;
+        private object _newInstance;
+        private bool _executed;
 
         public InstanceLookup(
             IComponentRegistration registration,
@@ -44,41 +46,61 @@ namespace Autofac.Core.Resolving
             ISharingLifetimeScope mostNestedVisibleScope,
             IEnumerable<Parameter> parameters)
         {
-            _parameters = parameters;
-            _componentRegistration = registration;
+            Parameters = parameters;
+            ComponentRegistration = registration;
             _context = context;
-            _activationScope = _componentRegistration.Lifetime.FindScope(mostNestedVisibleScope);
+
+            try
+            {
+                _activationScope = ComponentRegistration.Lifetime.FindScope(mostNestedVisibleScope);
+            }
+            catch (DependencyResolutionException ex)
+            {
+                var services = new StringBuilder();
+                foreach (var s in registration.Services)
+                {
+                    services.Append("- ");
+                    services.AppendLine(s.Description);
+                }
+
+                var message = String.Format(CultureInfo.CurrentCulture, ComponentActivationResources.UnableToLocateLifetimeScope, registration.Activator.LimitType, services);
+                throw new DependencyResolutionException(message, ex);
+            }
         }
 
         public object Execute()
         {
             if (_executed)
-                throw new InvalidOperationException(ComponentActivationResources.ActivationAlreadyExecuted);
+                throw new InvalidOperationException(String.Format(CultureInfo.CurrentCulture, ComponentActivationResources.ActivationAlreadyExecuted, this.ComponentRegistration));
 
             _executed = true;
 
-            object instance;
-            if (_componentRegistration.Sharing == InstanceSharing.None)
-                instance = Activate(Parameters);
-            else
-                instance = _activationScope.GetOrCreateAndShare(_componentRegistration.Id, () => Activate(Parameters));
+            object instance = ComponentRegistration.Sharing == InstanceSharing.None
+                ? Activate(Parameters)
+                : _activationScope.GetOrCreateAndShare(ComponentRegistration.Id, () => Activate(Parameters));
 
             var handler = InstanceLookupEnding;
-            if (handler != null)
-                handler(this, new InstanceLookupEndingEventArgs(this, NewInstanceActivated));
+            handler?.Invoke(this, new InstanceLookupEndingEventArgs(this, NewInstanceActivated));
 
             return instance;
         }
 
-        bool NewInstanceActivated { get { return _newInstance != null; } }
+        private bool NewInstanceActivated => _newInstance != null;
 
-        object Activate(IEnumerable<Parameter> parameters)
+        private object Activate(IEnumerable<Parameter> parameters)
         {
-            _componentRegistration.RaisePreparing(this, ref parameters);
+            ComponentRegistration.RaisePreparing(this, ref parameters);
 
-            _newInstance = _componentRegistration.Activator.ActivateInstance(this, parameters);
+            try
+            {
+                _newInstance = ComponentRegistration.Activator.ActivateInstance(this, parameters);
+            }
+            catch (Exception ex)
+            {
+                throw new DependencyResolutionException(String.Format(CultureInfo.CurrentCulture, ComponentActivationResources.ErrorDuringActivation, this.ComponentRegistration), ex);
+            }
 
-            if (_componentRegistration.Ownership == InstanceOwnership.OwnedByLifetimeScope)
+            if (ComponentRegistration.Ownership == InstanceOwnership.OwnedByLifetimeScope)
             {
                 // The fact this adds instances for disposal agnostic of the activator is
                 // important. The ProvidedInstanceActivator will NOT dispose of the provided
@@ -89,7 +111,7 @@ namespace Autofac.Core.Resolving
                     _activationScope.Disposer.AddInstanceForDisposal(instanceAsDisposable);
             }
 
-            _componentRegistration.RaiseActivating(this, parameters, ref _newInstance);
+            ComponentRegistration.RaiseActivating(this, parameters, ref _newInstance);
 
             return _newInstance;
         }
@@ -99,31 +121,26 @@ namespace Autofac.Core.Resolving
             if (!NewInstanceActivated) return;
 
             var beginningHandler = CompletionBeginning;
-            if (beginningHandler != null)
-                beginningHandler(this, new InstanceLookupCompletionBeginningEventArgs(this));
+            beginningHandler?.Invoke(this, new InstanceLookupCompletionBeginningEventArgs(this));
 
-            _componentRegistration.RaiseActivated(this, Parameters, _newInstance);
+            ComponentRegistration.RaiseActivated(this, Parameters, _newInstance);
 
             var endingHandler = CompletionEnding;
-            if (endingHandler != null)
-                endingHandler(this, new InstanceLookupCompletionEndingEventArgs(this));
+            endingHandler?.Invoke(this, new InstanceLookupCompletionEndingEventArgs(this));
         }
 
-        public IComponentRegistry ComponentRegistry
-        {
-            get { return _activationScope.ComponentRegistry; }
-        }
+        public IComponentRegistry ComponentRegistry => _activationScope.ComponentRegistry;
 
         public object ResolveComponent(IComponentRegistration registration, IEnumerable<Parameter> parameters)
         {
             return _context.GetOrCreateInstance(_activationScope, registration, parameters);
         }
 
-        public IComponentRegistration ComponentRegistration { get { return _componentRegistration; } }
+        public IComponentRegistration ComponentRegistration { get; }
 
-        public ILifetimeScope ActivationScope { get { return _activationScope; } }
+        public ILifetimeScope ActivationScope => _activationScope;
 
-        public IEnumerable<Parameter> Parameters { get { return _parameters; } }
+        public IEnumerable<Parameter> Parameters { get; }
 
         public event EventHandler<InstanceLookupEndingEventArgs> InstanceLookupEnding;
 

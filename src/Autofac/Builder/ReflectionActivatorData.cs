@@ -27,7 +27,6 @@ using System;
 using System.Collections.Generic;
 using Autofac.Core;
 using Autofac.Core.Activators.Reflection;
-using Autofac.Util;
 
 namespace Autofac.Builder
 {
@@ -36,23 +35,27 @@ namespace Autofac.Builder
     /// </summary>
     public class ReflectionActivatorData
     {
-        Type _implementer;
-        IConstructorFinder _constructorFinder = new DefaultConstructorFinder();
-        IConstructorSelector _constructorSelector = new MostParametersConstructorSelector();
-        readonly IList<Parameter> _configuredParameters = new List<Parameter>();
-        readonly IList<Parameter> _configuredProperties = new List<Parameter>();
+        private Type _implementer;
+        private IConstructorFinder _constructorFinder;
+        private IConstructorSelector _constructorSelector;
+
+        private static readonly IConstructorFinder DefaultConstructorFinder = new DefaultConstructorFinder();
+        private static readonly IConstructorSelector DefaultConstructorSelector = new MostParametersConstructorSelector();
 
         /// <summary>
-        /// Specify a reflection activator for the given type.
+        /// Initializes a new instance of the <see cref="ReflectionActivatorData"/> class.
         /// </summary>
         /// <param name="implementer">Type that will be activated.</param>
         public ReflectionActivatorData(Type implementer)
         {
             ImplementationType = implementer;
+
+            _constructorFinder = DefaultConstructorFinder;
+            _constructorSelector = DefaultConstructorSelector;
         }
 
         /// <summary>
-        /// Get the implementation type.
+        /// Gets or sets the implementation type.
         /// </summary>
         public Type ImplementationType
         {
@@ -60,44 +63,56 @@ namespace Autofac.Builder
             {
                 return _implementer;
             }
+
             set
             {
-                _implementer = Enforce.ArgumentNotNull(value, "value");
+                if (value == null) throw new ArgumentNullException(nameof(value));
+                _implementer = value;
             }
         }
 
         /// <summary>
-        /// The constructor finder for the registration.
+        /// Gets or sets the constructor finder for the registration.
         /// </summary>
         public IConstructorFinder ConstructorFinder
         {
-            get { return _constructorFinder; }
-            set { _constructorFinder = Enforce.ArgumentNotNull(value, "value"); }
+            get
+            {
+                return _constructorFinder;
+            }
+
+            set
+            {
+                if (value == null) throw new ArgumentNullException(nameof(value));
+                _constructorFinder = value;
+            }
         }
 
         /// <summary>
-        /// The constructor selector for the registration.
+        /// Gets or sets the constructor selector for the registration.
         /// </summary>
         public IConstructorSelector ConstructorSelector
         {
-            get { return _constructorSelector; }
-            set { _constructorSelector = Enforce.ArgumentNotNull(value, "value"); }
+            get
+            {
+                return _constructorSelector;
+            }
+
+            set
+            {
+                if (value == null) throw new ArgumentNullException(nameof(value));
+                _constructorSelector = value;
+            }
         }
 
         /// <summary>
-        /// The explicitly bound constructor parameters.
+        /// Gets the explicitly bound constructor parameters.
         /// </summary>
-        public IList<Parameter> ConfiguredParameters
-        {
-            get { return _configuredParameters; }
-        }
+        public IList<Parameter> ConfiguredParameters { get; } = new List<Parameter>();
 
         /// <summary>
-        /// The explicitly bound properties.
+        /// Gets the explicitly bound properties.
         /// </summary>
-        public IList<Parameter> ConfiguredProperties
-        {
-            get { return _configuredProperties; }
-        }
+        public IList<Parameter> ConfiguredProperties { get; } = new List<Parameter>();
     }
 }

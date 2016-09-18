@@ -27,6 +27,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using Autofac.Builder;
 using Autofac.Core;
 using Autofac.Core.Activators.Delegate;
 using Autofac.Core.Lifetime;
@@ -62,7 +63,7 @@ namespace Autofac.Features.Collections
     /// for something you don't expect to resolve."
     /// </para>
     /// </remarks>
-    class CollectionRegistrationSource : IRegistrationSource
+    internal class CollectionRegistrationSource : IRegistrationSource
     {
         /// <summary>
         /// Retrieve registrations for an unregistered service, to be used
@@ -73,61 +74,60 @@ namespace Autofac.Features.Collections
         /// <returns>Registrations providing the service.</returns>
         public IEnumerable<IComponentRegistration> RegistrationsFor(Service service, Func<Service, IEnumerable<IComponentRegistration>> registrationAccessor)
         {
-            if (service == null) throw new ArgumentNullException("service");
-            if (registrationAccessor == null) throw new ArgumentNullException("registrationAccessor");
+            if (service == null) throw new ArgumentNullException(nameof(service));
+            if (registrationAccessor == null) throw new ArgumentNullException(nameof(registrationAccessor));
 
             var swt = service as IServiceWithType;
-            if (swt != null)
+            if (swt == null)
+                return Enumerable.Empty<IComponentRegistration>();
+
+            var serviceType = swt.ServiceType;
+            Type elementType = null;
+
+            if (serviceType.IsGenericEnumerableInterfaceType())
             {
-                var serviceType = swt.ServiceType;
-                Type elementType = null;
-
-                if (serviceType.IsGenericEnumerableInterfaceType())
-                {
-                    elementType = serviceType.GetTypeInfo().GenericTypeArguments.First();
-                }
-                else if (serviceType.IsArray)
-                {
-                    elementType = serviceType.GetElementType();
-                }
-
-                if (elementType != null)
-                {
-                    var elementTypeService = swt.ChangeType(elementType);
-                    var elementArrayType = elementType.MakeArrayType();
-
-                    var listType = typeof(List<>).MakeGenericType(elementType);
-                    var serviceTypeIsList = serviceType.IsGenericListOrCollectionInterfaceType();
-
-                    var registration = new ComponentRegistration(
-                        Guid.NewGuid(),
-                        new DelegateActivator(elementArrayType, (c, p) =>
-                        {
-                            var elements = c.ComponentRegistry.RegistrationsFor(elementTypeService);
-                            var items = elements.Select(cr => c.ResolveComponent(cr, p)).ToArray();
-
-                            var result = Array.CreateInstance(elementType, items.Length);
-                            items.CopyTo(result, 0);
-
-                            return serviceTypeIsList ? Activator.CreateInstance(listType, result) : result;
-                        }),
-                        new CurrentScopeLifetime(),
-                        InstanceSharing.None,
-                        InstanceOwnership.ExternallyOwned,
-                        new[] { service },
-                        new Dictionary<string, object>());
-
-                    return new IComponentRegistration[] { registration };
-                }
+                elementType = serviceType.GetTypeInfo().GenericTypeArguments.First();
+            }
+            else if (serviceType.IsArray)
+            {
+                elementType = serviceType.GetElementType();
             }
 
-            return Enumerable.Empty<IComponentRegistration>();
+            if (elementType == null)
+                return Enumerable.Empty<IComponentRegistration>();
+
+            var elementTypeService = swt.ChangeType(elementType);
+            var elementArrayType = elementType.MakeArrayType();
+
+            var listType = typeof(List<>).MakeGenericType(elementType);
+            var serviceTypeIsList = serviceType.IsGenericListOrCollectionInterfaceType();
+
+            var activator = new DelegateActivator(
+                elementArrayType,
+                (c, p) =>
+                {
+                    var elements = c.ComponentRegistry.RegistrationsFor(elementTypeService).OrderBy(cr => cr.GetRegistrationOrder());
+                    var items = elements.Select(cr => c.ResolveComponent(cr, p)).ToArray();
+
+                    var result = Array.CreateInstance(elementType, items.Length);
+                    items.CopyTo(result, 0);
+
+                    return serviceTypeIsList ? Activator.CreateInstance(listType, result) : result;
+                });
+
+            var registration = new ComponentRegistration(
+                Guid.NewGuid(),
+                activator,
+                new CurrentScopeLifetime(),
+                InstanceSharing.None,
+                InstanceOwnership.ExternallyOwned,
+                new[] { service },
+                new Dictionary<string, object>());
+
+            return new IComponentRegistration[] { registration };
         }
 
-        public bool IsAdapterForIndividualComponents
-        {
-            get { return false; }
-        }
+        public bool IsAdapterForIndividualComponents => false;
 
         public override string ToString()
         {

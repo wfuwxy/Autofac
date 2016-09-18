@@ -10,12 +10,17 @@ namespace Autofac.Test
 {
     public class RegistrationExtensionsTests
     {
-        // ReSharper disable InconsistentNaming
+        internal interface IMyService
+        {
+        }
 
-        interface IMyService { }
+        public sealed class MyComponent : IMyService
+        {
+        }
 
-        public sealed class MyComponent : IMyService { }
-        public sealed class MyComponent2 { }
+        public sealed class MyComponent2
+        {
+        }
 
         [Fact]
         public void RegistrationsMadeInConfigureExpressionAreAddedToContainer()
@@ -93,8 +98,13 @@ namespace Autofac.Test
             Assert.False(provided.IsDisposed, "The release action should have superseded the automatic call to IDisposable.Dispose.");
         }
 
-        public interface IImplementedInterface { }
-        public class SelfComponent : IImplementedInterface { }
+        public interface IImplementedInterface
+        {
+        }
+
+        public class SelfComponent : IImplementedInterface
+        {
+        }
 
         [Fact]
         public void AsImplementedInterfaces_CanBeAppliedToNonGenericRegistrations()
@@ -126,6 +136,21 @@ namespace Autofac.Test
             context.Resolve<IImplementedInterface>();
         }
 
+        internal IImplementedInterface SelfComponentFactory()
+        {
+            return new SelfComponent();
+        }
+
+        [Fact]
+        public void AsImplementedInterfaces_CanBeAppliedToInstanceRegistrationsOfInterfaces()
+        {
+            var builder = new ContainerBuilder();
+            builder.Register(c => SelfComponentFactory()).AsImplementedInterfaces();
+            var context = builder.Build();
+
+            context.Resolve<IImplementedInterface>();
+        }
+
         [Fact]
         public void AsSelf_CanBeAppliedToInstanceRegistrations()
         {
@@ -136,10 +161,13 @@ namespace Autofac.Test
             context.Resolve<SelfComponent>();
         }
 
-        // ReSharper disable UnusedTypeParameter
-        public interface IImplementedInterface<T> { }
-        // ReSharper restore UnusedTypeParameter
-        public class SelfComponent<T> : IImplementedInterface<T> { }
+        public interface IImplementedInterface<T>
+        {
+        }
+
+        public class SelfComponent<T> : IImplementedInterface<T>
+        {
+        }
 
         [Fact]
         public void AsImplementedInterfaces_CanBeAppliedToOpenGenericRegistrations()
@@ -221,6 +249,7 @@ namespace Autofac.Test
             Assert.Equal(1, firstCount);
             Assert.Equal(1, secondCount);
         }
+
         [Fact]
         public void InstancePerRequest_AdditionalLifetimeScopeTagsCanBeProvided()
         {

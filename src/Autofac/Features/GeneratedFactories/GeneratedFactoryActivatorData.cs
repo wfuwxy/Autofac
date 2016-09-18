@@ -27,7 +27,6 @@ using System;
 using Autofac.Builder;
 using Autofac.Core;
 using Autofac.Core.Activators.Delegate;
-using Autofac.Util;
 
 namespace Autofac.Features.GeneratedFactories
 {
@@ -36,44 +35,41 @@ namespace Autofac.Features.GeneratedFactories
     /// </summary>
     public class GeneratedFactoryActivatorData : IConcreteActivatorData
     {
-        ParameterMapping _parameterMapping = ParameterMapping.Adaptive;
-        Type _delegateType;
-        Service _productService;
+        private readonly Type _delegateType;
+        private readonly Service _productService;
 
         /// <summary>
-        /// Create a new GeneratedFactoryActivatorData
+        /// Initializes a new instance of the <see cref="GeneratedFactoryActivatorData"/> class.
         /// </summary>
         /// <param name="delegateType">The type of the factory.</param>
         /// <param name="productService">The service used to provide the products of the factory.</param>
         public GeneratedFactoryActivatorData(Type delegateType, Service productService)
         {
-            _delegateType = Enforce.ArgumentNotNull(delegateType, "delegateType");
-            _productService = Enforce.ArgumentNotNull(productService, "productService");
+            if (delegateType == null) throw new ArgumentNullException(nameof(delegateType));
+            if (productService == null) throw new ArgumentNullException(nameof(productService));
+
+            _delegateType = delegateType;
+            _productService = productService;
         }
 
         /// <summary>
-        /// Determines how the parameters of the delegate type are passed on
+        /// Gets or sets a value determining how the parameters of the delegate type are passed on
         /// to the generated Resolve() call as Parameter objects.
         /// For Func-based delegates, this defaults to ByType. Otherwise, the
         /// parameters will be mapped by name.
         /// </summary>
-        public ParameterMapping ParameterMapping
-        {
-            get { return _parameterMapping; }
-            set { _parameterMapping = value; }
-        }
+        public ParameterMapping ParameterMapping { get; set; } = ParameterMapping.Adaptive;
 
         /// <summary>
-        /// Activator data that can provide an IInstanceActivator instance.
+        /// Gets the activator data that can provide an IInstanceActivator instance.
         /// </summary>
         public IInstanceActivator Activator
         {
-            get 
+            get
             {
                 var factory = new FactoryGenerator(_delegateType, _productService, ParameterMapping);
                 return new DelegateActivator(_delegateType, (c, p) => factory.GenerateFactory(c, p));
             }
         }
     }
-
 }

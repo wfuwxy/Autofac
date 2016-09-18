@@ -27,7 +27,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
-using Autofac.Util;
 
 namespace Autofac.Core.Activators.Delegate
 {
@@ -37,17 +36,19 @@ namespace Autofac.Core.Activators.Delegate
     [SuppressMessage("Microsoft.Design", "CA1063:ImplementIDisposableCorrectly", Justification = "There is nothing in the derived class to dispose so no override is necessary.")]
     public class DelegateActivator : InstanceActivator, IInstanceActivator
     {
-        readonly Func<IComponentContext, IEnumerable<Parameter>, object> _activationFunction;
+        private readonly Func<IComponentContext, IEnumerable<Parameter>, object> _activationFunction;
 
         /// <summary>
-        /// Create a delegate activator.
+        /// Initializes a new instance of the <see cref="DelegateActivator"/> class.
         /// </summary>
         /// <param name="limitType">The most specific type to which activated instances can be cast.</param>
         /// <param name="activationFunction">Activation delegate.</param>
         public DelegateActivator(Type limitType, Func<IComponentContext, IEnumerable<Parameter>, object> activationFunction)
             : base(limitType)
         {
-            _activationFunction = Enforce.ArgumentNotNull(activationFunction, "activationFunction");
+            if (activationFunction == null) throw new ArgumentNullException(nameof(activationFunction));
+
+            _activationFunction = activationFunction;
         }
 
         /// <summary>
@@ -62,13 +63,14 @@ namespace Autofac.Core.Activators.Delegate
         /// </remarks>
         public object ActivateInstance(IComponentContext context, IEnumerable<Parameter> parameters)
         {
-            if (context == null) throw new ArgumentNullException("context");
-            if (parameters == null) throw new ArgumentNullException("parameters");
+            if (context == null) throw new ArgumentNullException(nameof(context));
+            if (parameters == null) throw new ArgumentNullException(nameof(parameters));
 
             var result = _activationFunction(context, parameters);
             if (result == null)
-                throw new DependencyResolutionException(string.Format(CultureInfo.CurrentCulture,
-                    DelegateActivatorResources.NullFromActivationDelegateFor, LimitType));
+            {
+                throw new DependencyResolutionException(string.Format(CultureInfo.CurrentCulture, DelegateActivatorResources.NullFromActivationDelegateFor, LimitType));
+            }
 
             return result;
         }

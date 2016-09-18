@@ -1,18 +1,23 @@
 ﻿{
-	"version": "1.0.0-*",
-	"dependencies": {
-		"Autofac": "4.0.0-alpha1"
-	},
-
-	"frameworks": {
-		"aspnet50": {
-			"dependencies": {
-			}
-		},
-		"aspnetcore50": {
-			"dependencies": {
-				"System.Runtime": "4.0.20-beta-22416"
-			}
-		}
-	}
+  "buildOptions": {
+    "additionalArguments": [
+      "/ruleset:../../build/Analyzers.ruleset"
+    ],
+    "keyFile": "../../Autofac.snk"
+  },
+  "dependencies": {
+    "Autofac": {
+      "target": "project"
+    },
+    "NETStandard.Library": "1.6.0",
+    "StyleCop.Analyzers": {
+      "type": "build",
+      "version": "1.0.0"
+    }
+  },
+  "frameworks": {
+    "net451": {},
+    "netstandard1.1": {}
+  },
+  "version": "1.0.0"
 }

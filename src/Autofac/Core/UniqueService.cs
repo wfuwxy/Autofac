@@ -32,7 +32,7 @@ namespace Autofac.Core
     /// </summary>
     public sealed class UniqueService : Service
     {
-        Guid _id;
+        private readonly Guid _id;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="UniqueService"/> class.
@@ -52,16 +52,9 @@ namespace Autofac.Core
         }
 
         /// <summary>
-        /// Provides a programmer-readable description of the identifying feature of the service.
+        /// Gets a programmer-readable description of the identifying feature of the service.
         /// </summary>
-        /// <value></value>
-        public override string Description
-        {
-            get
-            {
-                return _id.ToString();
-            }
-        }
+        public override string Description => _id.ToString();
 
         /// <summary>
         /// Determines whether the specified <see cref="T:System.Object"/> is equal to the current <see cref="T:System.Object"/>.
@@ -73,7 +66,7 @@ namespace Autofac.Core
         /// <exception cref="T:System.NullReferenceException">The <paramref name="obj"/> parameter is null.</exception>
         public override bool Equals(object obj)
         {
-            UniqueService that = obj as UniqueService;
+            var that = obj as UniqueService;
 
             return that != null && _id == that._id;
         }

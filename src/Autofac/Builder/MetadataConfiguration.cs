@@ -40,9 +40,9 @@ namespace Autofac.Builder
     /// <remarks>This feature was suggested by OJ Reeves (@TheColonial).</remarks>
     public class MetadataConfiguration<TMetadata>
     {
-        readonly IDictionary<string, object> _properties = new Dictionary<string, object>();
+        private readonly IDictionary<string, object> _properties = new Dictionary<string, object>();
 
-        internal IEnumerable<KeyValuePair<string, object>> Properties { get { return _properties; } }
+        internal IEnumerable<KeyValuePair<string, object>> Properties => _properties;
 
         /// <summary>
         /// Set one of the property values.
@@ -52,7 +52,8 @@ namespace Autofac.Builder
         /// <param name="value">The property value to set.</param>
         public MetadataConfiguration<TMetadata> For<TProperty>(Expression<Func<TMetadata, TProperty>> propertyAccessor, TProperty value)
         {
-            if (propertyAccessor == null) throw new ArgumentNullException("propertyAccessor");
+            if (propertyAccessor == null) throw new ArgumentNullException(nameof(propertyAccessor));
+
             var pn = ReflectionExtensions.GetProperty(propertyAccessor).Name;
             _properties.Add(pn, value);
             return this;

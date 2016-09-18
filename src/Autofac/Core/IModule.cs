@@ -23,15 +23,14 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 // OTHER DEALINGS IN THE SOFTWARE.
 
-
 namespace Autofac.Core
 {
-	/// <summary>
-	/// Represents a set of components and related functionality
-	/// packaged together.
-	/// </summary>
-	public interface IModule
-	{
+    /// <summary>
+    /// Represents a set of components and related functionality
+    /// packaged together.
+    /// </summary>
+    public interface IModule
+    {
         /// <summary>
         /// Apply the module to the component registry.
         /// </summary>

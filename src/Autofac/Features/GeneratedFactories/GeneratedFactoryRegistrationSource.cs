@@ -32,7 +32,7 @@ using Autofac.Util;
 
 namespace Autofac.Features.GeneratedFactories
 {
-    class GeneratedFactoryRegistrationSource : IRegistrationSource
+    internal class GeneratedFactoryRegistrationSource : IRegistrationSource
     {
         /// <summary>
         /// Retrieve registrations for an unregistered service, to be used
@@ -43,36 +43,32 @@ namespace Autofac.Features.GeneratedFactories
         /// <returns>Registrations providing the service.</returns>
         public IEnumerable<IComponentRegistration> RegistrationsFor(Service service, Func<Service, IEnumerable<IComponentRegistration>> registrationAccessor)
         {
-            if (service == null) throw new ArgumentNullException("service");
-            if (registrationAccessor == null) throw new ArgumentNullException("registrationAccessor");
+            if (service == null) throw new ArgumentNullException(nameof(service));
+            if (registrationAccessor == null) throw new ArgumentNullException(nameof(registrationAccessor));
 
             var ts = service as IServiceWithType;
-            if (ts != null && ts.ServiceType.IsDelegate())
-            {
-                var resultType = ts.ServiceType.FunctionReturnType();
-                var resultTypeService = ts.ChangeType(resultType);
+            if (ts == null || !ts.ServiceType.IsDelegate())
+                return Enumerable.Empty<IComponentRegistration>();
 
-                return registrationAccessor(resultTypeService)
-                    .Select(r =>
-                    {
-                        var factory = new FactoryGenerator(ts.ServiceType, r, ParameterMapping.Adaptive);
-                        var rb = RegistrationBuilder.ForDelegate(ts.ServiceType, factory.GenerateFactory)
-                            .InstancePerLifetimeScope()
-                            .ExternallyOwned()
-                            .As(service)
-                            .Targeting(r);
+            var resultType = ts.ServiceType.FunctionReturnType();
+            var resultTypeService = ts.ChangeType(resultType);
 
-                        return rb.CreateRegistration();
-                    });
-            }
+            return registrationAccessor(resultTypeService)
+                .Select(r =>
+                {
+                    var factory = new FactoryGenerator(ts.ServiceType, r, ParameterMapping.Adaptive);
+                    var rb = RegistrationBuilder.ForDelegate(ts.ServiceType, factory.GenerateFactory)
+                        .InstancePerLifetimeScope()
+                        .ExternallyOwned()
+                        .As(service)
+                        .Targeting(r)
+                        .InheritRegistrationOrderFrom(r);
 
-            return Enumerable.Empty<IComponentRegistration>();
+                    return rb.CreateRegistration();
+                });
         }
 
-        public bool IsAdapterForIndividualComponents
-        {
-            get { return true; }
-        }
+        public bool IsAdapterForIndividualComponents => true;
 
         public override string ToString()
         {

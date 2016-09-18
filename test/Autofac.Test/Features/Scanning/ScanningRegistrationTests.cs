@@ -3,18 +3,19 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using Autofac.Builder;
-using Autofac.Features.Metadata;
-using Autofac.Features.Scanning;
-using Xunit;
-using Autofac.Test.Scenarios.ScannedAssembly;
 using Autofac.Core;
 using Autofac.Core.Lifetime;
+using Autofac.Features.Metadata;
+using Autofac.Features.Scanning;
+using Autofac.Test.Scenarios.ScannedAssembly;
+using Autofac.Test.Scenarios.ScannedAssembly.MetadataAttributeScanningScenario;
+using Xunit;
 
 namespace Autofac.Test.Features.Scanning
 {
     public class ScanningRegistrationTests
     {
-        static readonly Assembly ScenarioAssembly = typeof(AComponent).GetTypeInfo().Assembly;
+        private static readonly Assembly ScenarioAssembly = typeof(AComponent).GetTypeInfo().Assembly;
 
         [Fact]
         public void WhenAssemblyIsScannedTypesRegisteredByDefault()
@@ -230,6 +231,30 @@ namespace Autofac.Test.Features.Scanning
         }
 
         [Fact]
+        public void AsClosedTypesOfWithServiceKeyShouldAssignKeyToAllRegistrations()
+        {
+            var cb = new ContainerBuilder();
+            cb.RegisterAssemblyTypes(typeof(ICommand<>).GetTypeInfo().Assembly)
+                .AsClosedTypesOf(typeof(ICommand<>), "command");
+            var c = cb.Build();
+
+            Assert.IsType<SaveCommand>(c.ResolveKeyed<ICommand<SaveCommandData>>("command"));
+            Assert.IsType<DeleteCommand>(c.ResolveKeyed<ICommand<DeleteCommandData>>("command"));
+        }
+
+        [Fact]
+        public void AsClosedTypesOfWithServiceKeyMappingShouldAssignKeyResultToEachRegistration()
+        {
+            var cb = new ContainerBuilder();
+            cb.RegisterAssemblyTypes(typeof(ICommand<>).GetTypeInfo().Assembly)
+                .AsClosedTypesOf(typeof(ICommand<>), t => t);
+            var c = cb.Build();
+
+            Assert.IsType<SaveCommand>(c.ResolveKeyed<ICommand<SaveCommandData>>(typeof(SaveCommand)));
+            Assert.IsType<DeleteCommand>(c.ResolveKeyed<ICommand<DeleteCommandData>>(typeof(DeleteCommand)));
+        }
+
+        [Fact]
         public void DoesNotIncludeDelegateTypesThusNotOverridingGeneratedFactories()
         {
             var cb = new ContainerBuilder();
@@ -258,6 +283,7 @@ namespace Autofac.Test.Features.Scanning
             cb.RegisterAssemblyTypes(typeof(A2Component).GetTypeInfo().Assembly)
                 .As<IAService>();
             var c = cb.Build();
+
             // Without the filter this line would throw anyway
             var a = c.Resolve<IEnumerable<IAService>>();
             Assert.Equal(1, a.Count());
@@ -367,7 +393,6 @@ namespace Autofac.Test.Features.Scanning
             c.AssertComponentRegistrationOrder<IAService, AnExistingComponent, A2Component>();
         }
 
-
         public IContainer RegisterScenarioAssembly(Action<IRegistrationBuilder<object, ScanningActivatorData, DynamicRegistrationStyle>> configuration = null)
         {
             var cb = new ContainerBuilder();
@@ -389,11 +414,11 @@ namespace Autofac.Test.Features.Scanning
         public void MetadataCanBeScannedFromAMatchingAttributeInterface()
         {
             var c = RegisterScenarioAssembly(a => a
-                .Where(t => t == typeof (ScannedComponentWithName))
+                .Where(t => t == typeof(ScannedComponentWithName))
                 .WithMetadataFrom<IHaveName>());
 
             IComponentRegistration r;
-            c.ComponentRegistry.TryGetRegistration(new TypedService(typeof (ScannedComponentWithName)), out r);
+            c.ComponentRegistry.TryGetRegistration(new TypedService(typeof(ScannedComponentWithName)), out r);
 
             object name;
             r.Metadata.TryGetValue("Name", out name);
@@ -411,6 +436,16 @@ namespace Autofac.Test.Features.Scanning
                 return k;
             }));
             Assert.True(c.IsRegisteredWithKey<IAService>(k));
+        }
+
+        [Fact]
+        public void DeferredEnumerableHelperClassDoesNotGetRegistered()
+        {
+            var c = RegisterScenarioAssembly(a => a.AsImplementedInterfaces());
+
+            var implementations = c.Resolve<IEnumerable<IHaveDeferredEnumerable>>();
+
+            Assert.Equal(1, implementations.Count());
         }
     }
 }

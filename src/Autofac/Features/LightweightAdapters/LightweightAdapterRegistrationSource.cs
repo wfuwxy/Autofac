@@ -32,30 +32,29 @@ using Autofac.Core;
 
 namespace Autofac.Features.LightweightAdapters
 {
-    class LightweightAdapterRegistrationSource : IRegistrationSource
+    internal class LightweightAdapterRegistrationSource : IRegistrationSource
     {
-        readonly RegistrationData _registrationData;
-        readonly LightweightAdapterActivatorData _activatorData;
+        private readonly RegistrationData _registrationData;
+        private readonly LightweightAdapterActivatorData _activatorData;
 
         public LightweightAdapterRegistrationSource(
             RegistrationData registrationData,
             LightweightAdapterActivatorData activatorData)
         {
-            if (registrationData == null) throw new ArgumentNullException("registrationData");
-            if (activatorData == null) throw new ArgumentNullException("activatorData");
+            if (registrationData == null) throw new ArgumentNullException(nameof(registrationData));
+            if (activatorData == null) throw new ArgumentNullException(nameof(activatorData));
 
             _registrationData = registrationData;
             _activatorData = activatorData;
 
             if (registrationData.Services.Contains(activatorData.FromService))
-                throw new ArgumentException(string.Format(CultureInfo.CurrentCulture,
-                    LightweightAdapterRegistrationSourceResources.FromAndToMustDiffer, activatorData.FromService));
+                throw new ArgumentException(string.Format(CultureInfo.CurrentCulture, LightweightAdapterRegistrationSourceResources.FromAndToMustDiffer, activatorData.FromService));
         }
 
         public IEnumerable<IComponentRegistration> RegistrationsFor(Service service, Func<Service, IEnumerable<IComponentRegistration>> registrationAccessor)
         {
-            if (service == null) throw new ArgumentNullException("service");
-            if (registrationAccessor == null) throw new ArgumentNullException("registrationAccessor");
+            if (service == null) throw new ArgumentNullException(nameof(service));
+            if (registrationAccessor == null) throw new ArgumentNullException(nameof(registrationAccessor));
 
             if (_registrationData.Services.Contains(service))
             {
@@ -64,7 +63,8 @@ namespace Autofac.Features.LightweightAdapters
                     {
                         var rb = RegistrationBuilder
                             .ForDelegate((c, p) => _activatorData.Adapter(c, p, c.ResolveComponent(r, Enumerable.Empty<Parameter>())))
-                            .Targeting(r);
+                            .Targeting(r)
+                            .InheritRegistrationOrderFrom(r);
 
                         rb.RegistrationData.CopyFrom(_registrationData, true);
 
@@ -76,12 +76,12 @@ namespace Autofac.Features.LightweightAdapters
             var adapteeServiceWithType = _activatorData.FromService as IServiceWithType;
 
             if (
-                // requested and adaptee are services with type
-                (requestedServiceWithType != null && adapteeServiceWithType != null) && 
-                // avoiding decorators here
+                //// requested and adaptee are services with type
+                //// not including decorators here
+                //// and if this registration source contains requested service's type
+                (requestedServiceWithType != null && adapteeServiceWithType != null) &&
                 (requestedServiceWithType.ServiceType != adapteeServiceWithType.ServiceType) &&
-                // if this registration source contains requested service's type
-                (_registrationData.Services.OfType<IServiceWithType>().Any(s => s.ServiceType == requestedServiceWithType.ServiceType)))
+                _registrationData.Services.OfType<IServiceWithType>().Any(s => s.ServiceType == requestedServiceWithType.ServiceType))
             {
                 // we try to find registrations for the adaptee service but preserve info from the requested service e.g. keys
                 var serviceToFind = requestedServiceWithType.ChangeType(adapteeServiceWithType.ServiceType);
@@ -94,7 +94,7 @@ namespace Autofac.Features.LightweightAdapters
                             .Targeting(r);
 
                         rb.RegistrationData.CopyFrom(_registrationData, true);
-                        
+
                         // we explicitly add requested service to the RegistrationData
                         rb.RegistrationData.AddService(service);
 
@@ -105,14 +105,12 @@ namespace Autofac.Features.LightweightAdapters
             return new IComponentRegistration[0];
         }
 
-        public bool IsAdapterForIndividualComponents
-        {
-            get { return true; }
-        }
+        public bool IsAdapterForIndividualComponents => true;
 
         public override string ToString()
         {
-            return string.Format(CultureInfo.CurrentCulture,
+            return string.Format(
+                CultureInfo.CurrentCulture,
                 LightweightAdapterRegistrationSourceResources.AdapterFromToDescription,
                 _activatorData.FromService.Description,
                 string.Join(", ", _registrationData.Services.Select(s => s.Description).ToArray()));

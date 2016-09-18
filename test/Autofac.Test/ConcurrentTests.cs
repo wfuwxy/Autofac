@@ -1,9 +1,9 @@
-﻿using System;
+﻿#if !WINDOWS_UWP
+using System;
 using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Autofac.Core;
 using Xunit;
 
 namespace Autofac.Test
@@ -28,7 +28,8 @@ namespace Autofac.Test
 
             var container = builder.Build();
 
-            ThreadStart work = () => {
+            ThreadStart work = () =>
+            {
                  try
                  {
                      var o = container.BeginLifetimeScope().Resolve<object>();
@@ -51,41 +52,7 @@ namespace Autofac.Test
             Assert.Empty(exceptions);
             Assert.Equal(1, results.Distinct().Count());
         }
-#if !ASPNETCORE50
-        [Fact]
-        public void ConcurrentResolveOperationsForNonSharedInstancesFromDifferentLifetimes_DoNotBlock()
-        {
-            var evt = new ManualResetEvent(false);
 
-            var builder = new ContainerBuilder();
-            builder.Register((c, p) =>
-                {
-                    if (p.TypedAs<bool>())
-                        evt.WaitOne();
-                    return new object();
-                });
-
-            var container = builder.Build();
-
-            var unblocked = 0;
-            var blockedScope = container.BeginLifetimeScope();
-            var blockedThread = new Thread(() =>
-            {
-                blockedScope.Resolve<object>(TypedParameter.From(true));
-                Interlocked.Increment(ref unblocked);
-            });
-            blockedThread.Start();
-            Thread.Sleep(500);
-
-            container.Resolve<object>(TypedParameter.From(false));
-            container.BeginLifetimeScope().Resolve<object>(TypedParameter.From(false));
-
-            Thread.MemoryBarrier();
-            Assert.Equal(0, unblocked);
-            evt.Set();
-            blockedThread.Join();
-        }
-#endif
         [Fact]
         public void ConcurrentResolveOperationsFromDifferentContainers_DoesNotThrow()
         {
@@ -94,7 +61,7 @@ namespace Autofac.Test
             Task.WaitAll(task1, task2);
         }
 
-        static void ResolveObjectInstanceLoop()
+        private static void ResolveObjectInstanceLoop()
         {
             var builder = new ContainerBuilder();
             builder.RegisterType<object>();
@@ -105,32 +72,6 @@ namespace Autofac.Test
                 container.Resolve<object>();
             }
         }
-#if !ASPNETCORE50 && !ASPNET50
-        [Fact(Timeout = 1000)]
-        public void NoLockWhenResolvingExistingSingleInstance()
-        {
-            var builder = new ContainerBuilder();
-            Func<IContainer> containerProvider = null;
-            builder.Register(c => new Int32()).SingleInstance();
-            builder.Register(c =>
-            {
-                using (var mres = new ManualResetEventSlim())
-                {
-                    ThreadPool.QueueUserWorkItem(state =>
-                    {
-                        containerProvider().Resolve<Int32>();
-                        mres.Set();
-                    });
-                    mres.Wait(1250);
-                }
-                return new object();
-            });
-
-            IContainer container = builder.Build();
-            containerProvider = () => container;
-            container.Resolve<Int32>();
-            container.Resolve<object>();
-        }
-#endif
     }
 }
+#endif

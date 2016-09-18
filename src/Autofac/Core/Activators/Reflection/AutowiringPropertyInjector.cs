@@ -24,52 +24,88 @@
 // OTHER DEALINGS IN THE SOFTWARE.
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using Autofac.Util;
 
 namespace Autofac.Core.Activators.Reflection
 {
-    class AutowiringPropertyInjector
+    internal class AutowiringPropertyInjector
     {
-        public static void InjectProperties(IComponentContext context, object instance, bool overrideSetValues)
+        public const string InstanceTypeNamedParameter = "Autofac.AutowiringPropertyInjector.InstanceType";
+
+        public static void InjectProperties(IComponentContext context, object instance, IPropertySelector propertySelector, IEnumerable<Parameter> parameters)
         {
-            if (context == null) throw new ArgumentNullException("context");
-            if (instance == null) throw new ArgumentNullException("instance");
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            if (instance == null)
+            {
+                throw new ArgumentNullException(nameof(instance));
+            }
+
+            if (propertySelector == null)
+            {
+                throw new ArgumentNullException(nameof(propertySelector));
+            }
+
+            if (parameters == null)
+            {
+                throw new ArgumentNullException(nameof(parameters));
+            }
 
             var instanceType = instance.GetType();
 
             foreach (var property in instanceType
-                .GetTypeInfo().DeclaredProperties
+                .GetRuntimeProperties()
                 .Where(pi => pi.CanWrite))
             {
                 var propertyType = property.PropertyType;
 
                 if (propertyType.GetTypeInfo().IsValueType && !propertyType.GetTypeInfo().IsEnum)
+                {
                     continue;
+                }
 
                 if (propertyType.IsArray && propertyType.GetElementType().GetTypeInfo().IsValueType)
+                {
                     continue;
+                }
 
-                if (propertyType.IsGenericEnumerableInterfaceType() && propertyType.GetTypeInfo().GenericTypeArguments.ToArray()[0].GetTypeInfo().IsValueType)
+                if (propertyType.IsGenericEnumerableInterfaceType() && propertyType.GetTypeInfo().GenericTypeArguments[0].GetTypeInfo().IsValueType)
+                {
                     continue;
+                }
 
                 if (property.GetIndexParameters().Length != 0)
+                {
                     continue;
+                }
 
-                if (!context.IsRegistered(propertyType))
+                if (!propertySelector.InjectProperty(property, instance))
+                {
                     continue;
+                }
 
-                if (!property.SetMethod.IsPublic)
+                var setParameter = property.SetMethod.GetParameters().First();
+                var valueProvider = (Func<object>)null;
+                var parameter = parameters.FirstOrDefault(p => p.CanSupplyValue(setParameter, context, out valueProvider));
+                if (parameter != null)
+                {
+                    property.SetValue(instance, valueProvider(), null);
                     continue;
+                }
 
-                if (!overrideSetValues &&
-                    property.CanRead && property.CanWrite &&
-                    (property.GetValue(instance, null) != null))
-                    continue;
-
-                var propertyValue = context.Resolve(propertyType);
-                property.SetValue(instance, propertyValue, null);
+                object propertyValue;
+                var propertyService = new TypedService(propertyType);
+                var instanceTypeParameter = new NamedParameter(InstanceTypeNamedParameter, instanceType);
+                if (context.TryResolveService(propertyService, new Parameter[] { instanceTypeParameter }, out propertyValue))
+                {
+                    property.SetValue(instance, propertyValue, null);
+                }
             }
         }
     }

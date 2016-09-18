@@ -29,18 +29,16 @@ using System.Linq;
 using System.Reflection;
 using Autofac.Builder;
 using Autofac.Core;
-using Autofac.Util;
 
 namespace Autofac.Features.ResolveAnything
 {
-
     /// <summary>
     /// Provides registrations on-the-fly for any concrete type not already registered with
     /// the container.
     /// </summary>
     public class AnyConcreteTypeNotAlreadyRegisteredSource : IRegistrationSource
     {
-        readonly Func<Type, bool> _predicate;
+        private readonly Func<Type, bool> _predicate;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="AnyConcreteTypeNotAlreadyRegisteredSource"/> class.
@@ -56,7 +54,9 @@ namespace Autofac.Features.ResolveAnything
         /// <param name="predicate">A predicate that selects types the source will register.</param>
         public AnyConcreteTypeNotAlreadyRegisteredSource(Func<Type, bool> predicate)
         {
-            _predicate = Enforce.ArgumentNotNull(predicate, "predicate");
+            if (predicate == null) throw new ArgumentNullException(nameof(predicate));
+
+            _predicate = predicate;
         }
 
         /// <summary>
@@ -70,10 +70,8 @@ namespace Autofac.Features.ResolveAnything
             Service service,
             Func<Service, IEnumerable<IComponentRegistration>> registrationAccessor)
         {
-            if (registrationAccessor == null)
-            {
-                throw new ArgumentNullException("registrationAccessor");
-            }
+            if (registrationAccessor == null) throw new ArgumentNullException(nameof(registrationAccessor));
+
             var ts = service as TypedService;
             if (ts == null ||
                 !ts.ServiceType.GetTypeInfo().IsClass ||
@@ -85,21 +83,15 @@ namespace Autofac.Features.ResolveAnything
                 return Enumerable.Empty<IComponentRegistration>();
 
             var builder = RegistrationBuilder.ForType(ts.ServiceType);
-            if (this.RegistrationConfiguration != null)
-            {
-                this.RegistrationConfiguration(builder);
-            }
+            RegistrationConfiguration?.Invoke(builder);
             return new[] { builder.CreateRegistration() };
         }
 
         /// <summary>
-        /// Gets whether the registrations provided by this source are 1:1 adapters on top
+        /// Gets a value indicating whether the registrations provided by this source are 1:1 adapters on top
         /// of other components (I.e. like Meta, Func or Owned.)
         /// </summary>
-        public bool IsAdapterForIndividualComponents
-        {
-            get { return false; }
-        }
+        public bool IsAdapterForIndividualComponents => false;
 
         /// <summary>
         /// Gets or sets an expression used to configure generated registrations.

@@ -11,8 +11,8 @@
 namespace Autofac {
     using System;
     using System.Reflection;
-    
-    
+
+
     /// <summary>
     ///   A strongly-typed resource class, for looking up localized strings, etc.
     /// </summary>
@@ -24,15 +24,15 @@ namespace Autofac {
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
     internal class ContainerBuilderResources {
-        
+
         private static global::System.Resources.ResourceManager resourceMan;
-        
+
         private static global::System.Globalization.CultureInfo resourceCulture;
-        
+
         [global::System.Diagnostics.CodeAnalysis.SuppressMessageAttribute("Microsoft.Performance", "CA1811:AvoidUncalledPrivateCode")]
         internal ContainerBuilderResources() {
         }
-        
+
         /// <summary>
         ///   Returns the cached ResourceManager instance used by this class.
         /// </summary>
@@ -40,17 +40,13 @@ namespace Autofac {
         internal static global::System.Resources.ResourceManager ResourceManager {
             get {
                 if (object.ReferenceEquals(resourceMan, null)) {
-#if !ASPNETCORE50 && !ASPNET50
                     global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("Autofac.ContainerBuilderResources", typeof(ContainerBuilderResources).GetTypeInfo().Assembly);
-#else
-                    global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("Autofac.ContainerBuilderResources", typeof(ContainerBuilderResources).GetTypeInfo().Assembly);
-#endif
                     resourceMan = temp;
                 }
                 return resourceMan;
             }
         }
-        
+
         /// <summary>
         ///   Overrides the current thread's CurrentUICulture property for all
         ///   resource lookups using this strongly typed resource class.
@@ -64,7 +60,7 @@ namespace Autofac {
                 resourceCulture = value;
             }
         }
-        
+
         /// <summary>
         ///   Looks up a localized string similar to Build() or Update() can only be called once on a ContainerBuilder..
         /// </summary>
@@ -73,7 +69,7 @@ namespace Autofac {
                 return ResourceManager.GetString("BuildCanOnlyBeCalledOnce", resourceCulture);
             }
         }
-        
+
         /// <summary>
         ///   Looks up a localized string similar to An error occurred while attempting to automatically activate registration &apos;{0}&apos;. See the inner exception for information on the source of the failure..
         /// </summary>

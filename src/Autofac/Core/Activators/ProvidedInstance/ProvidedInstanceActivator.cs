@@ -25,7 +25,7 @@
 
 using System;
 using System.Collections.Generic;
-using Autofac.Util;
+using System.Globalization;
 
 namespace Autofac.Core.Activators.ProvidedInstance
 {
@@ -34,16 +34,15 @@ namespace Autofac.Core.Activators.ProvidedInstance
     /// </summary>
     public class ProvidedInstanceActivator : InstanceActivator, IInstanceActivator
     {
-        readonly object _instance;
-        bool _activated;
-        bool _disposeInstance;
+        private readonly object _instance;
+        private bool _activated;
 
         /// <summary>
-        /// Provide the specified instance.
+        /// Initializes a new instance of the <see cref="ProvidedInstanceActivator"/> class.
         /// </summary>
         /// <param name="instance">The instance to provide.</param>
         public ProvidedInstanceActivator(object instance)
-            : base(Enforce.ArgumentNotNull(instance, "instance").GetType())
+            : base(GetType(instance))
         {
             _instance = instance;
         }
@@ -60,11 +59,11 @@ namespace Autofac.Core.Activators.ProvidedInstance
         /// </remarks>
         public object ActivateInstance(IComponentContext context, IEnumerable<Parameter> parameters)
         {
-            if (context == null) throw new ArgumentNullException("context");
-            if (parameters == null) throw new ArgumentNullException("parameters");
+            if (context == null) throw new ArgumentNullException(nameof(context));
+            if (parameters == null) throw new ArgumentNullException(nameof(parameters));
 
             if (_activated)
-                throw new InvalidOperationException(ProvidedInstanceActivatorResources.InstanceAlreadyActivated);
+                throw new InvalidOperationException(String.Format(CultureInfo.CurrentCulture, ProvidedInstanceActivatorResources.InstanceAlreadyActivated, this._instance.GetType()));
 
             _activated = true;
 
@@ -72,15 +71,11 @@ namespace Autofac.Core.Activators.ProvidedInstance
         }
 
         /// <summary>
-        /// Determines whether the activator disposes the instance that it holds.
+        /// Gets or sets a value indicating whether the activator disposes the instance that it holds.
         /// Necessary because otherwise instances that are never resolved will never be
         /// disposed.
         /// </summary>
-        public bool DisposeInstance
-        {
-            get { return _disposeInstance; }
-            set { _disposeInstance = value; }
-        }
+        public bool DisposeInstance { get; set; }
 
         /// <summary>
         /// Releases unmanaged and - optionally - managed resources
@@ -91,10 +86,17 @@ namespace Autofac.Core.Activators.ProvidedInstance
             // Only dispose of the instance here if it wasn't activated. If it was activated,
             // then either the owning lifetime scope will dispose of it automatically
             // (see InstanceLookup.Activate) or an OnRelease handler will take care of it.
-            if (disposing && _disposeInstance && _instance is IDisposable && !_activated)
+            if (disposing && DisposeInstance && _instance is IDisposable && !_activated)
                 ((IDisposable)_instance).Dispose();
 
             base.Dispose(disposing);
+        }
+
+        private static Type GetType(object instance)
+        {
+            if (instance == null) throw new ArgumentNullException(nameof(instance));
+
+            return instance.GetType();
         }
     }
 }

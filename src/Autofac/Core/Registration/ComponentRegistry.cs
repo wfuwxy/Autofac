@@ -47,22 +47,22 @@ namespace Autofac.Core.Registration
         /// <summary>
         /// Protects instance variables from concurrent access.
         /// </summary>
-        readonly object _synchRoot = new object();
+        private readonly object _synchRoot = new object();
 
         /// <summary>
         /// External registration sources.
         /// </summary>
-        readonly IList<IRegistrationSource> _dynamicRegistrationSources = new List<IRegistrationSource>();
+        private readonly IList<IRegistrationSource> _dynamicRegistrationSources = new List<IRegistrationSource>();
 
         /// <summary>
         /// All registrations.
         /// </summary>
-        readonly ICollection<IComponentRegistration> _registrations = new List<IComponentRegistration>();
+        private readonly ICollection<IComponentRegistration> _registrations = new List<IComponentRegistration>();
 
         /// <summary>
         /// Keeps track of the status of registered services.
         /// </summary>
-        readonly IDictionary<Service, ServiceRegistrationInfo> _serviceInfo = new Dictionary<Service, ServiceRegistrationInfo>();
+        private readonly IDictionary<Service, ServiceRegistrationInfo> _serviceInfo = new Dictionary<Service, ServiceRegistrationInfo>();
 
         /// <summary>
         /// Releases unmanaged and - optionally - managed resources
@@ -84,7 +84,8 @@ namespace Autofac.Core.Registration
         /// <returns>True if a registration exists.</returns>
         public bool TryGetRegistration(Service service, out IComponentRegistration registration)
         {
-            if (service == null) throw new ArgumentNullException("service");
+            if (service == null) throw new ArgumentNullException(nameof(service));
+
             lock (_synchRoot)
             {
                 var info = GetInitializedServiceInfo(service);
@@ -99,7 +100,8 @@ namespace Autofac.Core.Registration
         /// <returns>True if the service is registered.</returns>
         public bool IsRegistered(Service service)
         {
-            if (service == null) throw new ArgumentNullException("service");
+            if (service == null) throw new ArgumentNullException(nameof(service));
+
             lock (_synchRoot)
             {
                 return GetInitializedServiceInfo(service).IsRegistered;
@@ -123,7 +125,7 @@ namespace Autofac.Core.Registration
         /// component will not be changed.</param>
         public virtual void Register(IComponentRegistration registration, bool preserveDefaults)
         {
-            if (registration == null) throw new ArgumentNullException("registration");
+            if (registration == null) throw new ArgumentNullException(nameof(registration));
 
             lock (_synchRoot)
             {
@@ -132,7 +134,7 @@ namespace Autofac.Core.Registration
             }
         }
 
-        void UpdateInitialisedAdapters(IComponentRegistration registration)
+        private void UpdateInitialisedAdapters(IComponentRegistration registration)
         {
             var adapterServices = _serviceInfo
                 .Where(si => si.Value.ShouldRecalculateAdaptersOn(registration))
@@ -142,37 +144,39 @@ namespace Autofac.Core.Registration
             if (adapterServices.Length == 0)
                 return;
 
-            Debug.WriteLine(String.Format(CultureInfo.InvariantCulture,
-                "[Autofac] Component '{0}' provides services that have already been adapted. Consider refactoring to ContainerBuilder.Build() rather than Update().",
-                registration));
+            Debug.WriteLine(
+                string.Format(
+                    CultureInfo.InvariantCulture,
+                    "[Autofac] Component '{0}' provides services that have already been adapted. Consider refactoring to ContainerBuilder.Build() rather than Update().",
+                    registration));
 
             var adaptationSandbox = new AdaptationSandbox(
                 _dynamicRegistrationSources.Where(rs => rs.IsAdapterForIndividualComponents),
                 registration,
                 adapterServices);
 
+            // Adapter registrations come from sources, so they are added with originatedFromSource: true
             var adapters = adaptationSandbox.GetAdapters();
             foreach (var adapter in adapters)
-                AddRegistration(adapter, true);
+                AddRegistration(adapter, true, true);
         }
 
-        void AddRegistration(IComponentRegistration registration, bool preserveDefaults)
+        private void AddRegistration(IComponentRegistration registration, bool preserveDefaults, bool originatedFromSource = false)
         {
             foreach (var service in registration.Services)
             {
                 var info = GetServiceInfo(service);
-                info.AddImplementation(registration, preserveDefaults);
+                info.AddImplementation(registration, preserveDefaults, originatedFromSource);
             }
 
             _registrations.Add(registration);
 
             var handler = Registered;
-            if (handler != null)
-                handler(this, new ComponentRegisteredEventArgs(this, registration));
+            handler?.Invoke(this, new ComponentRegisteredEventArgs(this, registration));
         }
 
         /// <summary>
-        /// Enumerate the registered components.
+        /// Gets the registered components.
         /// </summary>
         public IEnumerable<IComponentRegistration> Registrations
         {
@@ -192,7 +196,8 @@ namespace Autofac.Core.Registration
         /// <returns>Registrations supporting <paramref name="service"/>.</returns>
         public IEnumerable<IComponentRegistration> RegistrationsFor(Service service)
         {
-            if (service == null) throw new ArgumentNullException("service");
+            if (service == null) throw new ArgumentNullException(nameof(service));
+
             lock (_synchRoot)
             {
                 var info = GetInitializedServiceInfo(service);
@@ -212,7 +217,7 @@ namespace Autofac.Core.Registration
         /// <param name="source">The source to register.</param>
         public void AddRegistrationSource(IRegistrationSource source)
         {
-            if (source == null) throw new ArgumentNullException("source");
+            if (source == null) throw new ArgumentNullException(nameof(source));
 
             lock (_synchRoot)
             {
@@ -221,8 +226,7 @@ namespace Autofac.Core.Registration
                     serviceRegistrationInfo.Value.Include(source);
 
                 var handler = RegistrationSourceAdded;
-                if (handler != null)
-                    handler(this, new RegistrationSourceAddedEventArgs(this, source));
+                handler?.Invoke(this, new RegistrationSourceAddedEventArgs(this, source));
             }
         }
 
@@ -241,22 +245,20 @@ namespace Autofac.Core.Registration
         }
 
         /// <summary>
+        /// Gets a value indicating whether the registry contains its own components.
         /// True if the registry contains its own components; false if it is forwarding
         /// registrations from another external registry.
         /// </summary>
         /// <remarks>This property is used when walking up the scope tree looking for
         /// registrations for a new customised scope. (See issue 336.)</remarks>
-        public bool HasLocalComponents
-        {
-            get { return true; }
-        }
+        public bool HasLocalComponents => true;
 
         /// <summary>
         /// Fired when an <see cref="IRegistrationSource"/> is added to the registry.
         /// </summary>
         public event EventHandler<RegistrationSourceAddedEventArgs> RegistrationSourceAdded;
 
-        ServiceRegistrationInfo GetInitializedServiceInfo(Service service)
+        private ServiceRegistrationInfo GetInitializedServiceInfo(Service service)
         {
             var info = GetServiceInfo(service);
             if (info.IsInitialized)
@@ -275,7 +277,7 @@ namespace Autofac.Core.Registration
                     foreach (var additionalService in provided.Services)
                     {
                         var additionalInfo = GetServiceInfo(additionalService);
-                        if (additionalInfo.IsInitialized) continue;
+                        if (additionalInfo.IsInitialized || additionalInfo == info) continue;
 
                         if (!additionalInfo.IsInitializing)
                             additionalInfo.BeginInitialization(_dynamicRegistrationSources.Where(src => src != next));
@@ -283,7 +285,7 @@ namespace Autofac.Core.Registration
                             additionalInfo.SkipSource(next);
                     }
 
-                    AddRegistration(provided, true);
+                    AddRegistration(provided, true, true);
                 }
             }
 
@@ -291,7 +293,7 @@ namespace Autofac.Core.Registration
             return info;
         }
 
-        ServiceRegistrationInfo GetServiceInfo(Service service)
+        private ServiceRegistrationInfo GetServiceInfo(Service service)
         {
             ServiceRegistrationInfo existing;
             if (_serviceInfo.TryGetValue(service, out existing))

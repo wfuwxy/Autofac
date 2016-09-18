@@ -33,13 +33,13 @@ using Autofac.Util;
 
 namespace Autofac.Features.Scanning
 {
-    static class ScanningRegistrationExtensions
+    internal static class ScanningRegistrationExtensions
     {
         public static IRegistrationBuilder<object, ScanningActivatorData, DynamicRegistrationStyle>
             RegisterAssemblyTypes(ContainerBuilder builder, params Assembly[] assemblies)
         {
-            if (builder == null) throw new ArgumentNullException("builder");
-            if (assemblies == null) throw new ArgumentNullException("assemblies");
+            if (builder == null) throw new ArgumentNullException(nameof(builder));
+            if (assemblies == null) throw new ArgumentNullException(nameof(assemblies));
 
             var rb = new RegistrationBuilder<object, ScanningActivatorData, DynamicRegistrationStyle>(
                 new TypedService(typeof(object)),
@@ -54,8 +54,8 @@ namespace Autofac.Features.Scanning
         public static IRegistrationBuilder<object, ScanningActivatorData, DynamicRegistrationStyle>
             RegisterTypes(ContainerBuilder builder, params Type[] types)
         {
-            if (builder == null) throw new ArgumentNullException("builder");
-            if (types == null) throw new ArgumentNullException("types");
+            if (builder == null) throw new ArgumentNullException(nameof(builder));
+            if (types == null) throw new ArgumentNullException(nameof(types));
 
             var rb = new RegistrationBuilder<object, ScanningActivatorData, DynamicRegistrationStyle>(
                 new TypedService(typeof(object)),
@@ -67,12 +67,12 @@ namespace Autofac.Features.Scanning
             return rb;
         }
 
-        static void ScanAssemblies(IEnumerable<Assembly> assemblies, IComponentRegistry cr, IRegistrationBuilder<object, ScanningActivatorData, DynamicRegistrationStyle> rb)
+        private static void ScanAssemblies(IEnumerable<Assembly> assemblies, IComponentRegistry cr, IRegistrationBuilder<object, ScanningActivatorData, DynamicRegistrationStyle> rb)
         {
             ScanTypes(assemblies.SelectMany(a => a.GetLoadableTypes()), cr, rb);
         }
 
-        static void ScanTypes(IEnumerable<Type> types, IComponentRegistry cr, IRegistrationBuilder<object, ScanningActivatorData, DynamicRegistrationStyle> rb)
+        private static void ScanTypes(IEnumerable<Type> types, IComponentRegistry cr, IRegistrationBuilder<object, ScanningActivatorData, DynamicRegistrationStyle> rb)
         {
             rb.ActivatorData.Filters.Add(t =>
                 rb.RegistrationData.Services.OfType<IServiceWithType>().All(swt =>
@@ -84,6 +84,7 @@ namespace Autofac.Features.Scanning
                     !t.GetTypeInfo().IsAbstract &&
                     !t.GetTypeInfo().IsGenericTypeDefinition &&
                     !t.IsDelegate() &&
+                    !t.IsCompilerGenerated() &&
                     rb.ActivatorData.Filters.All(p => p(t))))
             {
                 var scanned = RegistrationBuilder.ForType(t)
@@ -111,7 +112,7 @@ namespace Autofac.Features.Scanning
                 Type openGenericServiceType)
             where TScanningActivatorData : ScanningActivatorData
         {
-            if (openGenericServiceType == null) throw new ArgumentNullException("openGenericServiceType");
+            if (openGenericServiceType == null) throw new ArgumentNullException(nameof(openGenericServiceType));
 
             return registration
                 .Where(candidateType => candidateType.IsClosedTypeOf(openGenericServiceType))
@@ -120,12 +121,40 @@ namespace Autofac.Features.Scanning
         }
 
         public static IRegistrationBuilder<TLimit, TScanningActivatorData, TRegistrationStyle>
+            AsClosedTypesOf<TLimit, TScanningActivatorData, TRegistrationStyle>(
+                IRegistrationBuilder<TLimit, TScanningActivatorData, TRegistrationStyle> registration,
+                Type openGenericServiceType,
+                object serviceKey)
+            where TScanningActivatorData : ScanningActivatorData
+        {
+            if (openGenericServiceType == null) throw new ArgumentNullException(nameof(openGenericServiceType));
+            if (serviceKey == null) throw new ArgumentNullException(nameof(serviceKey));
+
+            return AsClosedTypesOf(registration, openGenericServiceType, t => serviceKey);
+        }
+
+        public static IRegistrationBuilder<TLimit, TScanningActivatorData, TRegistrationStyle>
+            AsClosedTypesOf<TLimit, TScanningActivatorData, TRegistrationStyle>(
+                IRegistrationBuilder<TLimit, TScanningActivatorData, TRegistrationStyle> registration,
+                Type openGenericServiceType,
+                Func<Type, object> serviceKeyMapping)
+            where TScanningActivatorData : ScanningActivatorData
+        {
+            if (openGenericServiceType == null) throw new ArgumentNullException(nameof(openGenericServiceType));
+
+            return registration
+                .Where(candidateType => candidateType.IsClosedTypeOf(openGenericServiceType))
+                .As(candidateType => candidateType.GetTypesThatClose(openGenericServiceType)
+                        .Select(t => (Service)new KeyedService(serviceKeyMapping(candidateType), t)));
+        }
+
+        public static IRegistrationBuilder<TLimit, TScanningActivatorData, TRegistrationStyle>
             AssignableTo<TLimit, TScanningActivatorData, TRegistrationStyle>(
                 this IRegistrationBuilder<TLimit, TScanningActivatorData, TRegistrationStyle> registration,
                 Type type)
             where TScanningActivatorData : ScanningActivatorData
         {
-            if (registration == null) throw new ArgumentNullException("registration");
+            if (registration == null) throw new ArgumentNullException(nameof(registration));
 
             registration.ActivatorData.Filters.Add(t => type.GetTypeInfo().IsAssignableFrom(t.GetTypeInfo()));
             return registration;
@@ -137,8 +166,8 @@ namespace Autofac.Features.Scanning
                 Func<Type, IEnumerable<Service>> serviceMapping)
             where TScanningActivatorData : ScanningActivatorData
         {
-            if (registration == null) throw new ArgumentNullException("registration");
-            if (serviceMapping == null) throw new ArgumentNullException("serviceMapping");
+            if (registration == null) throw new ArgumentNullException(nameof(registration));
+            if (serviceMapping == null) throw new ArgumentNullException(nameof(serviceMapping));
 
             registration.ActivatorData.ConfigurationActions.Add((t, rb) =>
             {
@@ -162,7 +191,7 @@ namespace Autofac.Features.Scanning
             IRegistrationBuilder<TLimit, TScanningActivatorData, TRegistrationStyle> registration)
             where TScanningActivatorData : ScanningActivatorData
         {
-            if (registration == null) throw new ArgumentNullException("registration");
+            if (registration == null) throw new ArgumentNullException(nameof(registration));
 
             registration.ActivatorData.ConfigurationActions.Add((t, r) => r.PreserveExistingDefaults());
 

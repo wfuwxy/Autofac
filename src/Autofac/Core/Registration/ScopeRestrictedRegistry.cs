@@ -32,9 +32,9 @@ namespace Autofac.Core.Registration
     /// Switches components with a RootScopeLifetime (singletons) with
     /// decorators exposing MatchingScopeLifetime targeting the specified scope.
     /// </summary>
-    class ScopeRestrictedRegistry : ComponentRegistry
+    internal class ScopeRestrictedRegistry : ComponentRegistry
     {
-        readonly IComponentLifetime _restrictedRootScopeLifetime;
+        private readonly IComponentLifetime _restrictedRootScopeLifetime;
 
         public ScopeRestrictedRegistry(object scopeTag)
         {
@@ -43,10 +43,8 @@ namespace Autofac.Core.Registration
 
         public override void Register(IComponentRegistration registration, bool preserveDefaults)
         {
-            if (registration == null)
-            {
-                throw new ArgumentNullException("registration");
-            }
+            if (registration == null) throw new ArgumentNullException(nameof(registration));
+
             var toRegister = registration;
 
             if (registration.Lifetime is RootScopeLifetime)

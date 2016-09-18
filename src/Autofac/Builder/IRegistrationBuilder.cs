@@ -40,19 +40,19 @@ namespace Autofac.Builder
     public interface IRegistrationBuilder<out TLimit, out TActivatorData, out TRegistrationStyle>
     {
         /// <summary>
-        /// The activator data.
+        /// Gets the activator data.
         /// </summary>
         [EditorBrowsable(EditorBrowsableState.Never)]
         TActivatorData ActivatorData { get; }
 
         /// <summary>
-        /// The registration style.
+        /// Gets the registration style.
         /// </summary>
         [EditorBrowsable(EditorBrowsableState.Never)]
         TRegistrationStyle RegistrationStyle { get; }
 
         /// <summary>
-        /// The registration data.
+        /// Gets the registration data.
         /// </summary>
         [EditorBrowsable(EditorBrowsableState.Never)]
         RegistrationData RegistrationData { get; }
@@ -246,11 +246,12 @@ namespace Autofac.Builder
 
         /// <summary>
         /// Configure the component so that any properties whose types are registered in the
-        /// container will be wired to instances of the appropriate service.
+        /// container and follow specific criteria will be wired to instances of the appropriate service.
         /// </summary>
-        /// <param name="options">Set wiring options such as circular dependency wiring support.</param>
+        /// <param name="propertySelector">Selector to determine which properties should be injected.</param>
+        /// <param name="allowCircularDependencies">Determine if circular dependencies should be allowed or not.</param>
         /// <returns>A registration builder allowing further configuration of the component.</returns>
-        IRegistrationBuilder<TLimit, TActivatorData, TRegistrationStyle> PropertiesAutowired(PropertyWiringOptions options = PropertyWiringOptions.None);
+        IRegistrationBuilder<TLimit, TActivatorData, TRegistrationStyle> PropertiesAutowired(IPropertySelector propertySelector, bool allowCircularDependencies = false);
 
         /// <summary>
         /// Associates data with the component.
@@ -272,6 +273,9 @@ namespace Autofac.Builder
         /// </summary>
         /// <typeparam name="TMetadata">A type with properties whose names correspond to the
         /// property names to configure.</typeparam>
+        /// <param name="configurationAction">
+        /// The action used to configure the metadata.
+        /// </param>
         /// <returns>A registration builder allowing further configuration of the component.</returns>
         IRegistrationBuilder<TLimit, TActivatorData, TRegistrationStyle> WithMetadata<TMetadata>(Action<MetadataConfiguration<TMetadata>> configurationAction);
     }

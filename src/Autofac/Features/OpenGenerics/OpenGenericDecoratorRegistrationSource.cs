@@ -33,23 +33,22 @@ using Autofac.Core.Activators.Reflection;
 
 namespace Autofac.Features.OpenGenerics
 {
-    class OpenGenericDecoratorRegistrationSource : IRegistrationSource
+    internal class OpenGenericDecoratorRegistrationSource : IRegistrationSource
     {
-        readonly RegistrationData _registrationData;
-        readonly OpenGenericDecoratorActivatorData _activatorData;
+        private readonly RegistrationData _registrationData;
+        private readonly OpenGenericDecoratorActivatorData _activatorData;
 
         public OpenGenericDecoratorRegistrationSource(
             RegistrationData registrationData,
             OpenGenericDecoratorActivatorData activatorData)
         {
-            if (registrationData == null) throw new ArgumentNullException("registrationData");
-            if (activatorData == null) throw new ArgumentNullException("activatorData");
+            if (registrationData == null) throw new ArgumentNullException(nameof(registrationData));
+            if (activatorData == null) throw new ArgumentNullException(nameof(activatorData));
 
             OpenGenericServiceBinder.EnforceBindable(activatorData.ImplementationType, registrationData.Services);
 
             if (registrationData.Services.Contains((Service)activatorData.FromService))
-                throw new ArgumentException(string.Format(
-                    CultureInfo.CurrentCulture, OpenGenericDecoratorRegistrationSourceResources.FromAndToMustDiffer, activatorData.FromService));
+                throw new ArgumentException(string.Format(CultureInfo.CurrentCulture, OpenGenericDecoratorRegistrationSourceResources.FromAndToMustDiffer, activatorData.FromService));
 
             _registrationData = registrationData;
             _activatorData = activatorData;
@@ -57,8 +56,8 @@ namespace Autofac.Features.OpenGenerics
 
         public IEnumerable<IComponentRegistration> RegistrationsFor(Service service, Func<Service, IEnumerable<IComponentRegistration>> registrationAccessor)
         {
-            if (service == null) throw new ArgumentNullException("service");
-            if (registrationAccessor == null) throw new ArgumentNullException("registrationAccessor");
+            if (service == null) throw new ArgumentNullException(nameof(service));
+            if (registrationAccessor == null) throw new ArgumentNullException(nameof(registrationAccessor));
 
             Type constructedImplementationType;
             IEnumerable<Service> services;
@@ -71,19 +70,14 @@ namespace Autofac.Features.OpenGenerics
                     .Select(cr => RegistrationBuilder.CreateRegistration(
                             Guid.NewGuid(),
                             _registrationData,
-                            new ReflectionActivator(
-                                constructedImplementationType,
-                                _activatorData.ConstructorFinder,
-                                _activatorData.ConstructorSelector,
-                                AddDecoratedComponentParameter(swt.ServiceType, cr, _activatorData.ConfiguredParameters),
-                                _activatorData.ConfiguredProperties),
+                            new ReflectionActivator(constructedImplementationType, _activatorData.ConstructorFinder, _activatorData.ConstructorSelector, AddDecoratedComponentParameter(swt.ServiceType, cr, _activatorData.ConfiguredParameters), _activatorData.ConfiguredProperties),
                             services));
             }
 
             return Enumerable.Empty<IComponentRegistration>();
         }
 
-        static IEnumerable<Parameter> AddDecoratedComponentParameter(Type decoratedParameterType, IComponentRegistration decoratedComponent, IEnumerable<Parameter> configuredParameters)
+        private static IEnumerable<Parameter> AddDecoratedComponentParameter(Type decoratedParameterType, IComponentRegistration decoratedComponent, IEnumerable<Parameter> configuredParameters)
         {
             var parameter = new ResolvedParameter(
                 (pi, c) => pi.ParameterType == decoratedParameterType,
@@ -92,14 +86,12 @@ namespace Autofac.Features.OpenGenerics
             return new[] { parameter }.Concat(configuredParameters);
         }
 
-        public bool IsAdapterForIndividualComponents
-        {
-            get { return true; }
-        }
+        public bool IsAdapterForIndividualComponents => true;
 
         public override string ToString()
         {
-            return string.Format(CultureInfo.CurrentCulture,
+            return string.Format(
+                CultureInfo.CurrentCulture,
                 OpenGenericDecoratorRegistrationSourceResources.OpenGenericDecoratorRegistrationSourceImplFromTo,
                 _activatorData.ImplementationType.FullName,
                 ((Service)_activatorData.FromService).Description,

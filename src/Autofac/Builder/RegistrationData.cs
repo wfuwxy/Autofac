@@ -38,32 +38,32 @@ namespace Autofac.Builder
     /// </summary>
     public class RegistrationData
     {
-        bool _defaultServiceOverridden;
-        Service _defaultService;
+        private bool _defaultServiceOverridden;
+        private Service _defaultService;
 
-        readonly ICollection<Service> _services = new HashSet<Service>();
+        private readonly ICollection<Service> _services = new HashSet<Service>();
 
-        InstanceOwnership _ownership = InstanceOwnership.OwnedByLifetimeScope;
-        IComponentLifetime _lifetime = new CurrentScopeLifetime();
-        InstanceSharing _sharing = InstanceSharing.None;
-        readonly IDictionary<string, object> _metadata = new Dictionary<string, object>();
-        readonly ICollection<EventHandler<PreparingEventArgs>> _preparingHandlers = new List<EventHandler<PreparingEventArgs>>();
-        readonly ICollection<EventHandler<ActivatingEventArgs<object>>> _activatingHandlers = new List<EventHandler<ActivatingEventArgs<object>>>();
-        readonly ICollection<EventHandler<ActivatedEventArgs<object>>> _activatedHandlers = new List<EventHandler<ActivatedEventArgs<object>>>();
+        private IComponentLifetime _lifetime = new CurrentScopeLifetime();
 
         /// <summary>
-        /// Construct a RegistrationData instance.
+        /// Initializes a new instance of the <see cref="RegistrationData"/> class.
         /// </summary>
         /// <param name="defaultService">The default service that will be used if no others
         /// are added.</param>
         public RegistrationData(Service defaultService)
         {
-            if (defaultService == null) throw new ArgumentNullException("defaultService");
+            if (defaultService == null) throw new ArgumentNullException(nameof(defaultService));
+
             _defaultService = defaultService;
+
+            Metadata = new Dictionary<string, object>
+            {
+                { MetadataKeys.RegistrationOrderMetadataKey, SequenceGenerator.GetNextUniqueSequence() }
+            };
         }
 
         /// <summary>
-        /// The services explicitly assigned to the component.
+        /// Gets the services explicitly assigned to the component.
         /// </summary>
         public IEnumerable<Service> Services
         {
@@ -84,7 +84,8 @@ namespace Autofac.Builder
         /// clear the default service.</remarks>
         public void AddServices(IEnumerable<Service> services)
         {
-            if (services == null) throw new ArgumentNullException("services");
+            if (services == null) throw new ArgumentNullException(nameof(services));
+
             _defaultServiceOverridden = true; // important even when services is empty
             foreach (var service in services)
                 AddService(service);
@@ -96,57 +97,58 @@ namespace Autofac.Builder
         /// <param name="service">The service to add.</param>
         public void AddService(Service service)
         {
-            if (service == null) throw new ArgumentNullException("service");
+            if (service == null) throw new ArgumentNullException(nameof(service));
+
             _defaultServiceOverridden = true;
             _services.Add(service);
         }
 
         /// <summary>
-        /// The instance ownership assigned to the component.
+        /// Gets or sets the instance ownership assigned to the component.
         /// </summary>
-        public InstanceOwnership Ownership
-        {
-            get { return _ownership; }
-            set { _ownership = value; }
-        }
+        public InstanceOwnership Ownership { get; set; } = InstanceOwnership.OwnedByLifetimeScope;
 
         /// <summary>
-        /// The lifetime assigned to the component.
+        /// Gets or sets the lifetime assigned to the component.
         /// </summary>
         public IComponentLifetime Lifetime
         {
-            get { return _lifetime; }
-            set { _lifetime = Enforce.ArgumentNotNull(value, "lifetime"); }
+            get
+            {
+                return _lifetime;
+            }
+
+            set
+            {
+                if (value == null) throw new ArgumentNullException(nameof(value));
+                _lifetime = value;
+            }
         }
 
         /// <summary>
-        /// The sharing mode assigned to the component.
+        /// Gets or sets the sharing mode assigned to the component.
         /// </summary>
-        public InstanceSharing Sharing
-        {
-            get { return _sharing; }
-            set { _sharing = value; }
-        }
+        public InstanceSharing Sharing { get; set; } = InstanceSharing.None;
 
         /// <summary>
-        /// Extended properties assigned to the component.
+        /// Gets the extended properties assigned to the component.
         /// </summary>
-        public IDictionary<string, object> Metadata { get { return _metadata; } }
+        public IDictionary<string, object> Metadata { get; }
 
         /// <summary>
-        /// Handlers for the Preparing event.
+        /// Gets the handlers for the Preparing event.
         /// </summary>
-        public ICollection<EventHandler<PreparingEventArgs>> PreparingHandlers { get { return _preparingHandlers; } }
+        public ICollection<EventHandler<PreparingEventArgs>> PreparingHandlers { get; } = new List<EventHandler<PreparingEventArgs>>();
 
         /// <summary>
-        /// Handlers for the Activating event.
+        /// Gets the handlers for the Activating event.
         /// </summary>
-        public ICollection<EventHandler<ActivatingEventArgs<object>>> ActivatingHandlers { get { return _activatingHandlers; } }
+        public ICollection<EventHandler<ActivatingEventArgs<object>>> ActivatingHandlers { get; } = new List<EventHandler<ActivatingEventArgs<object>>>();
 
         /// <summary>
-        /// Handlers for the Activated event.
+        /// Gets the handlers for the Activated event.
         /// </summary>
-        public ICollection<EventHandler<ActivatedEventArgs<object>>> ActivatedHandlers { get { return _activatedHandlers; } }
+        public ICollection<EventHandler<ActivatedEventArgs<object>>> ActivatedHandlers { get; } = new List<EventHandler<ActivatedEventArgs<object>>>();
 
         /// <summary>
         /// Copies the contents of another RegistrationData object into this one.
@@ -159,10 +161,8 @@ namespace Autofac.Builder
         /// </exception>
         public void CopyFrom(RegistrationData that, bool includeDefaultService)
         {
-            if (that == null)
-            {
-                throw new ArgumentNullException("that");
-            }
+            if (that == null) throw new ArgumentNullException(nameof(that));
+
             Ownership = that.Ownership;
             Sharing = that.Sharing;
             Lifetime = that.Lifetime;
@@ -172,13 +172,13 @@ namespace Autofac.Builder
                 _defaultService = that._defaultService;
 
             AddAll(_services, that._services);
-            AddAll(Metadata, that.Metadata);
+            AddAll(Metadata, that.Metadata.Where(m => m.Key != MetadataKeys.RegistrationOrderMetadataKey));
             AddAll(PreparingHandlers, that.PreparingHandlers);
             AddAll(ActivatingHandlers, that.ActivatingHandlers);
             AddAll(ActivatedHandlers, that.ActivatedHandlers);
         }
 
-        static void AddAll<T>(ICollection<T> to, IEnumerable<T> from)
+        private static void AddAll<T>(ICollection<T> to, IEnumerable<T> from)
         {
             foreach (var item in from)
                 to.Add(item);

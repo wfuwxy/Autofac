@@ -37,7 +37,7 @@ namespace Autofac.Features.OwnedInstances
     /// Generates registrations for services of type <see cref="Owned{T}"/> whenever the service
     /// T is available.
     /// </summary>
-    class OwnedInstanceRegistrationSource : IRegistrationSource
+    internal class OwnedInstanceRegistrationSource : IRegistrationSource
     {
         /// <summary>
         /// Retrieve registrations for an unregistered service, to be used
@@ -48,8 +48,8 @@ namespace Autofac.Features.OwnedInstances
         /// <returns>Registrations providing the service.</returns>
         public IEnumerable<IComponentRegistration> RegistrationsFor(Service service, Func<Service, IEnumerable<IComponentRegistration>> registrationAccessor)
         {
-            if (service == null) throw new ArgumentNullException("service");
-            if (registrationAccessor == null) throw new ArgumentNullException("registrationAccessor");
+            if (service == null) throw new ArgumentNullException(nameof(service));
+            if (registrationAccessor == null) throw new ArgumentNullException(nameof(registrationAccessor));
 
             var ts = service as IServiceWithType;
             if (ts == null || !ts.ServiceType.IsGenericTypeDefinedBy(typeof(Owned<>)))
@@ -67,7 +67,7 @@ namespace Autofac.Features.OwnedInstances
                             try
                             {
                                 var value = lifetime.ResolveComponent(r, p);
-                                return Activator.CreateInstance(ts.ServiceType, new [] { value, lifetime });
+                                return Activator.CreateInstance(ts.ServiceType, new[] { value, lifetime });
                             }
                             catch
                             {
@@ -77,16 +77,14 @@ namespace Autofac.Features.OwnedInstances
                         })
                         .ExternallyOwned()
                         .As(service)
-                        .Targeting(r);
+                        .Targeting(r)
+                        .InheritRegistrationOrderFrom(r);
 
                     return rb.CreateRegistration();
                 });
         }
 
-        public bool IsAdapterForIndividualComponents
-        {
-            get { return true; }
-        }
+        public bool IsAdapterForIndividualComponents => true;
 
         public override string ToString()
         {

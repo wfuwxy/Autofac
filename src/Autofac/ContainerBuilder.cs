@@ -36,7 +36,6 @@ using Autofac.Features.Indexed;
 using Autofac.Features.LazyDependencies;
 using Autofac.Features.Metadata;
 using Autofac.Features.OwnedInstances;
-using Autofac.Util;
 
 namespace Autofac
 {
@@ -46,13 +45,13 @@ namespace Autofac
     /// <example>
     /// <code>
     /// var builder = new ContainerBuilder();
-    /// 
+    ///
     /// builder.RegisterType&lt;Logger&gt;()
     ///     .As&lt;ILogger&gt;()
     ///     .SingleInstance();
-    /// 
+    ///
     /// builder.Register(c => new MessageHandler(c.Resolve&lt;ILogger&gt;()));
-    /// 
+    ///
     /// var container = builder.Build();
     /// // resolve components from container...
     /// </code>
@@ -73,7 +72,9 @@ namespace Autofac
         /// <param name="configurationCallback">Callback to execute.</param>
         public virtual void RegisterCallback(Action<IComponentRegistry> configurationCallback)
         {
-            _configurationCallbacks.Add(Enforce.ArgumentNotNull(configurationCallback, "configurationCallback"));
+            if (configurationCallback == null) throw new ArgumentNullException(nameof(configurationCallback));
+
+            _configurationCallbacks.Add(configurationCallback);
         }
 
         /// <summary>
@@ -97,12 +98,12 @@ namespace Autofac
             return result;
         }
 
-        static void StartStartableComponents(IComponentContext componentContext)
+        private static void StartStartableComponents(IComponentContext componentContext)
         {
             // We track which registrations have already been auto-activated by adding
             // a metadata value. If the value is present, we won't re-activate. This helps
             // in the container update situation.
-            const string started = "__AutoActivated";
+            const string started = MetadataKeys.AutoActivated;
             object meta;
 
             foreach (var startable in componentContext.ComponentRegistry.RegistrationsFor(new TypedService(typeof(IStartable))).Where(r => !r.Metadata.TryGetValue(started, out meta)))
@@ -166,7 +167,7 @@ namespace Autofac
             // Issue #462: The ContainerBuildOptions parameter is added here as an overload
             // rather than an optional parameter to avoid method binding issues. In version
             // 4.0 or later we should refactor this to be an optional parameter.
-            if (container == null) throw new ArgumentNullException("container");
+            if (container == null) throw new ArgumentNullException(nameof(container));
             Update(container.ComponentRegistry);
             if ((options & ContainerBuildOptions.IgnoreStartableComponents) == ContainerBuildOptions.None)
                 StartStartableComponents(container);
@@ -183,13 +184,13 @@ namespace Autofac
         /// <param name="componentRegistry">An existing registry to make the registrations in.</param>
         public void Update(IComponentRegistry componentRegistry)
         {
-            if (componentRegistry == null) throw new ArgumentNullException("componentRegistry");
+            if (componentRegistry == null) throw new ArgumentNullException(nameof(componentRegistry));
             Build(componentRegistry, true);
         }
 
-        void Build(IComponentRegistry componentRegistry, bool excludeDefaultModules)
+        private void Build(IComponentRegistry componentRegistry, bool excludeDefaultModules)
         {
-            if (componentRegistry == null) throw new ArgumentNullException("componentRegistry");
+            if (componentRegistry == null) throw new ArgumentNullException(nameof(componentRegistry));
 
             if (_wasBuilt)
                 throw new InvalidOperationException(ContainerBuilderResources.BuildCanOnlyBeCalledOnce);
@@ -203,7 +204,7 @@ namespace Autofac
                 callback(componentRegistry);
         }
 
-        void RegisterDefaultAdapters(IComponentRegistry componentRegistry)
+        private void RegisterDefaultAdapters(IComponentRegistry componentRegistry)
         {
             this.RegisterGeneric(typeof(KeyedServiceIndex<,>)).As(typeof(IIndex<,>)).InstancePerLifetimeScope();
             componentRegistry.AddRegistrationSource(new CollectionRegistrationSource());

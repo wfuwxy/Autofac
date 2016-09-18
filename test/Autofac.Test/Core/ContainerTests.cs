@@ -1,7 +1,7 @@
 ﻿using System;
-using Xunit;
 using Autofac.Core;
 using Autofac.Test.Scenarios.Parameterisation;
+using Xunit;
 
 namespace Autofac.Test.Core
 {
@@ -90,11 +90,11 @@ namespace Autofac.Test.Core
             var component = new object();
 
             var cb = new ContainerBuilder();
-            cb.Register( c => component ).Keyed<object>( myKey );
+            cb.Register(c => component).Keyed<object>(myKey);
             var container = cb.Build();
 
-            var o = container.ResolveKeyed<object>( myKey );
-            Assert.Same( component, o );
+            var o = container.ResolveKeyed<object>(myKey);
+            Assert.Same(component, o);
         }
 
         [Fact]
@@ -147,6 +147,50 @@ namespace Autofac.Test.Core
             var resolved = c.Resolve<object>();
 
             Assert.Same(supplied, resolved);
+        }
+
+        [Fact]
+        public void ReplaceInstance_RegistrationActivatingHandlerProvidesResultToRelease()
+        {
+            var builder = new ContainerBuilder();
+            builder.RegisterType<ReplaceableComponent>()
+                .OnActivating(c => c.ReplaceInstance(new ReplaceableComponent { IsReplaced = true }))
+                .OnRelease(c => Assert.True(c.IsReplaced));
+
+            using (var container = builder.Build())
+            {
+                container.Resolve<ReplaceableComponent>();
+            }
+        }
+
+        [Fact]
+        public void ReplaceInstance_ModuleActivatingHandlerProvidesResultToRelease()
+        {
+            var builder = new ContainerBuilder();
+            builder.RegisterModule<ReplaceInstanceModule>();
+            builder.RegisterType<ReplaceableComponent>()
+                .OnRelease(c => Assert.True(c.IsReplaced));
+
+            using (var container = builder.Build())
+            {
+                container.Resolve<ReplaceableComponent>();
+            }
+        }
+
+        private class ReplaceInstanceModule : Module
+        {
+            protected override void AttachToComponentRegistration(IComponentRegistry componentRegistry, IComponentRegistration registration)
+            {
+                registration.Activating += (o, args) =>
+                {
+                    args.ReplaceInstance(new ReplaceableComponent { IsReplaced = true });
+                };
+            }
+        }
+
+        private class ReplaceableComponent
+        {
+            public bool IsReplaced { get; set; }
         }
     }
 }

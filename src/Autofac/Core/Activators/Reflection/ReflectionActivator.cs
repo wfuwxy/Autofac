@@ -30,7 +30,6 @@ using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Text;
-using Autofac.Util;
 
 namespace Autofac.Core.Activators.Reflection
 {
@@ -40,15 +39,13 @@ namespace Autofac.Core.Activators.Reflection
     [SuppressMessage("Microsoft.Design", "CA1063:ImplementIDisposableCorrectly", Justification = "There is nothing in the derived class to dispose so no override is necessary.")]
     public class ReflectionActivator : InstanceActivator, IInstanceActivator
     {
-        readonly Type _implementationType;
-        readonly IConstructorSelector _constructorSelector;
-        readonly IConstructorFinder _constructorFinder;
-        readonly IEnumerable<Parameter> _configuredParameters;
-        readonly IEnumerable<Parameter> _configuredProperties;
-        readonly IEnumerable<Parameter> _defaultParameters;
+        private readonly Type _implementationType;
+        private readonly IEnumerable<Parameter> _configuredProperties;
+        private readonly IEnumerable<Parameter> _defaultParameters;
+        private readonly ConstructorInfo[] _availableConstructors;
 
         /// <summary>
-        /// Create an activator for the provided type.
+        /// Initializes a new instance of the <see cref="ReflectionActivator"/> class.
         /// </summary>
         /// <param name="implementationType">Type to activate.</param>
         /// <param name="constructorFinder">Constructor finder.</param>
@@ -61,33 +58,32 @@ namespace Autofac.Core.Activators.Reflection
             IConstructorSelector constructorSelector,
             IEnumerable<Parameter> configuredParameters,
             IEnumerable<Parameter> configuredProperties)
-            : base(Enforce.ArgumentNotNull(implementationType, "implementationType"))
+            : base(implementationType)
         {
+            if (constructorFinder == null) throw new ArgumentNullException(nameof(constructorFinder));
+            if (constructorSelector == null) throw new ArgumentNullException(nameof(constructorSelector));
+            if (configuredParameters == null) throw new ArgumentNullException(nameof(configuredParameters));
+            if (configuredProperties == null) throw new ArgumentNullException(nameof(configuredProperties));
+
             _implementationType = implementationType;
-            _constructorFinder = Enforce.ArgumentNotNull(constructorFinder, "constructorFinder");
-            _constructorSelector = Enforce.ArgumentNotNull(constructorSelector, "constructorSelector");
-            _configuredParameters = Enforce.ArgumentNotNull(configuredParameters, "configuredParameters");
-            _configuredProperties = Enforce.ArgumentNotNull(configuredProperties, "configuredProperties");
+            ConstructorFinder = constructorFinder;
+            ConstructorSelector = constructorSelector;
+            _configuredProperties = configuredProperties;
 
-            _defaultParameters = _configuredParameters.Concat(
-                new Parameter[] {new AutowiringParameter(), new DefaultValueParameter()});
+            _defaultParameters = configuredParameters.Concat(new Parameter[] { new AutowiringParameter(), new DefaultValueParameter() });
+
+            _availableConstructors = ConstructorFinder.FindConstructors(_implementationType);
         }
 
         /// <summary>
-        /// The constructor finder.
+        /// Gets the constructor finder.
         /// </summary>
-        public IConstructorFinder ConstructorFinder
-        {
-            get { return _constructorFinder; }
-        }
+        public IConstructorFinder ConstructorFinder { get; }
 
         /// <summary>
-        /// The constructor selector.
+        /// Gets the constructor selector.
         /// </summary>
-        public IConstructorSelector ConstructorSelector
-        {
-            get { return _constructorSelector; }
-        }
+        public IConstructorSelector ConstructorSelector { get; }
 
         /// <summary>
         /// Activate an instance in the provided context.
@@ -101,19 +97,16 @@ namespace Autofac.Core.Activators.Reflection
         /// </remarks>
         public object ActivateInstance(IComponentContext context, IEnumerable<Parameter> parameters)
         {
-            if (context == null) throw new ArgumentNullException("context");
-            if (parameters == null) throw new ArgumentNullException("parameters");
+            if (context == null) throw new ArgumentNullException(nameof(context));
+            if (parameters == null) throw new ArgumentNullException(nameof(parameters));
 
-            var availableConstructors = _constructorFinder.FindConstructors(_implementationType);
-
-            if (availableConstructors.Length == 0)
-                throw new DependencyResolutionException(string.Format(
-                    CultureInfo.CurrentCulture, ReflectionActivatorResources.NoConstructorsAvailable, _implementationType, _constructorFinder));
+            if (_availableConstructors.Length == 0)
+                throw new DependencyResolutionException(string.Format(CultureInfo.CurrentCulture, ReflectionActivatorResources.NoConstructorsAvailable, _implementationType, ConstructorFinder));
 
             var constructorBindings = GetConstructorBindings(
                 context,
                 parameters,
-                availableConstructors);
+                _availableConstructors);
 
             var validBindings = constructorBindings
                 .Where(cb => cb.CanInstantiate)
@@ -122,7 +115,7 @@ namespace Autofac.Core.Activators.Reflection
             if (validBindings.Length == 0)
                 throw new DependencyResolutionException(GetBindingFailureMessage(constructorBindings));
 
-            var selectedBinding = _constructorSelector.SelectConstructorBinding(validBindings);
+            var selectedBinding = ConstructorSelector.SelectConstructorBinding(validBindings);
 
             var instance = selectedBinding.Instantiate();
 
@@ -131,7 +124,7 @@ namespace Autofac.Core.Activators.Reflection
             return instance;
         }
 
-        string GetBindingFailureMessage(IEnumerable<ConstructorParameterBinding> constructorBindings)
+        private string GetBindingFailureMessage(IEnumerable<ConstructorParameterBinding> constructorBindings)
         {
             var reasons = new StringBuilder();
 
@@ -144,10 +137,12 @@ namespace Autofac.Core.Activators.Reflection
             return string.Format(
                 CultureInfo.CurrentCulture,
                 ReflectionActivatorResources.NoConstructorsBindable,
-                _constructorFinder, _implementationType, reasons);
+                ConstructorFinder,
+                _implementationType,
+                reasons);
         }
 
-        IEnumerable<ConstructorParameterBinding> GetConstructorBindings(
+        private IEnumerable<ConstructorParameterBinding> GetConstructorBindings(
             IComponentContext context,
             IEnumerable<Parameter> parameters,
             IEnumerable<ConstructorInfo> constructorInfo)
@@ -157,27 +152,28 @@ namespace Autofac.Core.Activators.Reflection
             return constructorInfo.Select(ci => new ConstructorParameterBinding(ci, prioritisedParameters, context));
         }
 
-        void InjectProperties(object instance, IComponentContext context)
+        private void InjectProperties(object instance, IComponentContext context)
         {
             if (!_configuredProperties.Any())
                 return;
 
-            var actualProps = instance
-                .GetType().GetTypeInfo().DeclaredProperties
+            var actualProperties = instance
+                .GetType()
+                .GetRuntimeProperties()
                 .Where(pi => pi.CanWrite)
                 .ToList();
 
-            foreach (var prop in _configuredProperties)
+            foreach (var configuredProperty in _configuredProperties)
             {
-                foreach (var actual in actualProps)
+                foreach (var actualProperty in actualProperties)
                 {
-                    var setter = actual.SetMethod;
+                    var setter = actualProperty.SetMethod;
                     Func<object> vp;
                     if (setter != null &&
-                        prop.CanSupplyValue(setter.GetParameters().First(), context, out vp))
+                        configuredProperty.CanSupplyValue(setter.GetParameters().First(), context, out vp))
                     {
-                        actualProps.Remove(actual);
-                        actual.SetValue(instance, vp(), null);
+                        actualProperties.Remove(actualProperty);
+                        actualProperty.SetValue(instance, vp(), null);
                         break;
                     }
                 }

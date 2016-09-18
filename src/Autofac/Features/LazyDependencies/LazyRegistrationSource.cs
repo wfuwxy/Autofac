@@ -34,21 +34,19 @@ using Autofac.Util;
 namespace Autofac.Features.LazyDependencies
 {
     /// <summary>
-    /// Support the <see cref="System.Lazy{T}"/> 
+    /// Support the <see cref="System.Lazy{T}"/>
     /// type automatically whenever type T is registered with the container.
     /// When a dependency of a lazy type is used, the instantiation of the underlying
     /// component will be delayed until the Value property is first accessed.
     /// </summary>
-    class LazyRegistrationSource : IRegistrationSource
+    internal class LazyRegistrationSource : IRegistrationSource
     {
-        static readonly MethodInfo CreateLazyRegistrationMethod = typeof(LazyRegistrationSource).GetTypeInfo().GetDeclaredMethod("CreateLazyRegistration");
+        private static readonly MethodInfo CreateLazyRegistrationMethod = typeof(LazyRegistrationSource).GetTypeInfo().GetDeclaredMethod(nameof(CreateLazyRegistration));
 
         public IEnumerable<IComponentRegistration> RegistrationsFor(Service service, Func<Service, IEnumerable<IComponentRegistration>> registrationAccessor)
         {
-            if (registrationAccessor == null)
-            {
-                throw new ArgumentNullException("registrationAccessor");
-            }
+            if (registrationAccessor == null) throw new ArgumentNullException(nameof(registrationAccessor));
+
             var swt = service as IServiceWithType;
             if (swt == null || !swt.ServiceType.IsGenericTypeDefinedBy(typeof(Lazy<>)))
                 return Enumerable.Empty<IComponentRegistration>();
@@ -63,19 +61,14 @@ namespace Autofac.Features.LazyDependencies
                 .Cast<IComponentRegistration>();
         }
 
-        public bool IsAdapterForIndividualComponents
-        {
-            get { return true; }
-        }
+        public bool IsAdapterForIndividualComponents => true;
 
         public override string ToString()
         {
             return LazyRegistrationSourceResources.LazyRegistrationSourceDescription;
         }
 
-        // ReSharper disable UnusedMember.Local
-        static IComponentRegistration CreateLazyRegistration<T>(Service providedService, IComponentRegistration valueRegistration)
-        // ReSharper restore UnusedMember.Local
+        private static IComponentRegistration CreateLazyRegistration<T>(Service providedService, IComponentRegistration valueRegistration)
         {
             var rb = RegistrationBuilder.ForDelegate(
                 (c, p) =>
@@ -84,7 +77,8 @@ namespace Autofac.Features.LazyDependencies
                     return new Lazy<T>(() => (T)context.ResolveComponent(valueRegistration, p));
                 })
                 .As(providedService)
-                .Targeting(valueRegistration);
+                .Targeting(valueRegistration)
+                .InheritRegistrationOrderFrom(valueRegistration);
 
             return rb.CreateRegistration();
         }

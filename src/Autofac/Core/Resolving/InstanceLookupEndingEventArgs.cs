@@ -32,35 +32,27 @@ namespace Autofac.Core.Resolving
     /// </summary>
     public class InstanceLookupEndingEventArgs : EventArgs
     {
-        readonly IInstanceLookup _instanceLookup;
-        readonly bool _newInstanceActivated;
-
         /// <summary>
-        /// Create an instance of the <see cref="InstanceLookupBeginningEventArgs"/> class.
+        /// Initializes a new instance of the <see cref="InstanceLookupEndingEventArgs"/> class.
         /// </summary>
         /// <param name="instanceLookup">The instance lookup that is ending.</param>
         /// <param name="newInstanceActivated">True if a new instance was created as part of the operation.</param>
         public InstanceLookupEndingEventArgs(IInstanceLookup instanceLookup, bool newInstanceActivated)
         {
-            if (instanceLookup == null) throw new ArgumentNullException("instanceLookup");
-            _instanceLookup = instanceLookup;
-            _newInstanceActivated = newInstanceActivated;
+            if (instanceLookup == null) throw new ArgumentNullException(nameof(instanceLookup));
+
+            InstanceLookup = instanceLookup;
+            NewInstanceActivated = newInstanceActivated;
         }
 
         /// <summary>
-        /// True if a new instance was created as part of the operation.
+        /// Gets a value indicating whether a new instance was created as part of the operation.
         /// </summary>
-        public bool NewInstanceActivated
-        {
-            get { return _newInstanceActivated; }
-        }
+        public bool NewInstanceActivated { get; }
 
         /// <summary>
-        /// The instance lookup operation that is ending.
+        /// Gets the instance lookup operation that is ending.
         /// </summary>
-        public IInstanceLookup InstanceLookup
-        {
-            get { return _instanceLookup; }
-        }
+        public IInstanceLookup InstanceLookup { get; }
     }
 }

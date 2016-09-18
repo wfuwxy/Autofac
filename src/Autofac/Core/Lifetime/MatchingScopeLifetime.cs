@@ -34,15 +34,15 @@ namespace Autofac.Core.Lifetime
     /// </summary>
     public class MatchingScopeLifetime : IComponentLifetime
     {
-        readonly object[] _tagsToMatch;
+        private readonly object[] _tagsToMatch;
 
         /// <summary>
-        /// Match scopes by comparing tags for equality.
+        /// Initializes a new instance of the <see cref="MatchingScopeLifetime"/> class.
         /// </summary>
         /// <param name="lifetimeScopeTagsToMatch">The tags applied to matching scopes.</param>
         public MatchingScopeLifetime(params object[] lifetimeScopeTagsToMatch)
         {
-            if (lifetimeScopeTagsToMatch == null) throw new ArgumentNullException("lifetimeScopeTagsToMatch");
+            if (lifetimeScopeTagsToMatch == null) throw new ArgumentNullException(nameof(lifetimeScopeTagsToMatch));
 
             _tagsToMatch = lifetimeScopeTagsToMatch;
         }
@@ -55,7 +55,7 @@ namespace Autofac.Core.Lifetime
         /// <returns>The scope for the component.</returns>
         public ISharingLifetimeScope FindScope(ISharingLifetimeScope mostNestedVisibleScope)
         {
-            if (mostNestedVisibleScope == null) throw new ArgumentNullException("mostNestedVisibleScope");
+            if (mostNestedVisibleScope == null) throw new ArgumentNullException(nameof(mostNestedVisibleScope));
 
             var next = mostNestedVisibleScope;
             while (next != null)

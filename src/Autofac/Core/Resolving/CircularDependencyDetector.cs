@@ -30,46 +30,42 @@ using System.Linq;
 
 namespace Autofac.Core.Resolving
 {
-    class CircularDependencyDetector
+    internal class CircularDependencyDetector
     {
         /// <summary>
         /// Catch circular dependencies that are triggered by post-resolve processing (e.g. 'OnActivated')
         /// </summary>
-        const int MaxResolveDepth = 50;
+        private const int MaxResolveDepth = 50;
 
-        static string CreateDependencyGraphTo(IComponentRegistration registration, IEnumerable<InstanceLookup> activationStack)
+        private static string CreateDependencyGraphTo(IComponentRegistration registration, IEnumerable<InstanceLookup> activationStack)
         {
-            if (registration == null) throw new ArgumentNullException("registration");
-            if (activationStack == null) throw new ArgumentNullException("activationStack");
+            if (registration == null) throw new ArgumentNullException(nameof(registration));
+            if (activationStack == null) throw new ArgumentNullException(nameof(activationStack));
 
             var dependencyGraph = Display(registration);
 
-            foreach (var requestor in activationStack.Select(a => a.ComponentRegistration))
-                dependencyGraph = Display(requestor) + " -> " + dependencyGraph;
-
-            return dependencyGraph;
+            return activationStack.Select(a => a.ComponentRegistration)
+                .Aggregate(dependencyGraph, (current, requestor) => Display(requestor) + " -> " + current);
         }
 
-        static string Display(IComponentRegistration registration)
+        private static string Display(IComponentRegistration registration)
         {
             return registration.Activator.LimitType.FullName ?? string.Empty;
         }
 
         public static void CheckForCircularDependency(IComponentRegistration registration, Stack<InstanceLookup> activationStack, int callDepth)
         {
-            if (registration == null) throw new ArgumentNullException("registration");
-            if (activationStack == null) throw new ArgumentNullException("activationStack");
+            if (registration == null) throw new ArgumentNullException(nameof(registration));
+            if (activationStack == null) throw new ArgumentNullException(nameof(activationStack));
 
             if (callDepth > MaxResolveDepth)
-                throw new DependencyResolutionException(string.Format(CultureInfo.CurrentCulture,
-                    CircularDependencyDetectorResources.MaxDepthExceeded, registration));
+                throw new DependencyResolutionException(string.Format(CultureInfo.CurrentCulture, CircularDependencyDetectorResources.MaxDepthExceeded, registration));
 
             if (IsCircularDependency(registration, activationStack))
-                throw new DependencyResolutionException(string.Format(CultureInfo.CurrentCulture,
-                    CircularDependencyDetectorResources.CircularDependency, CreateDependencyGraphTo(registration, activationStack)));
+                throw new DependencyResolutionException(string.Format(CultureInfo.CurrentCulture, CircularDependencyDetectorResources.CircularDependency, CreateDependencyGraphTo(registration, activationStack)));
         }
 
-        static bool IsCircularDependency(IComponentRegistration registration, IEnumerable<InstanceLookup> activationStack)
+        private static bool IsCircularDependency(IComponentRegistration registration, IEnumerable<InstanceLookup> activationStack)
         {
             return activationStack.Any(a => a.ComponentRegistration == registration);
         }
